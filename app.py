@@ -12,12 +12,19 @@ if DATABASE_URL:
     import urllib.parse
 
     def get_db():
-        url = DATABASE_URL.split('?')[0]  # remove ?sslmode=require
+        url = DATABASE_URL
+        if '?' in url:
+            url = url[:url.index('?')]
         r = urllib.parse.urlparse(url)
+        user = r.username or r.netloc.split(':')[0].split('@')[0] if '@' in r.netloc else r.netloc.split(':')[0]
+        password = r.password
+        host = r.hostname
+        port = r.port or 5432
+        database = r.path.lstrip('/')
         return pg8000.native.Connection(
-            host=r.hostname, port=r.port or 5432,
-            database=r.path.lstrip('/'), user=r.username,
-            password=r.password, ssl_context=True
+            host=host, port=port,
+            database=database, user=user,
+            password=password, ssl_context=True
         )
 
     def init_db():
