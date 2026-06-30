@@ -93,9 +93,19 @@ else:
         conn.commit(); conn.close()
 
 
+def _cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
 @app.route('/')
 def index():
     return send_file('index.html')
+
+@app.route('/api/efectivo')
+def efectivo():
+    val = db_get('efectivo_actual', 0)
+    r = jsonify({'efectivo': val})
+    return _cors(r)
 
 @app.route('/api/load')
 def load():
@@ -111,6 +121,8 @@ def save():
         db_set('ap_all_v2', body['data'])
     if 'pass' in body:
         db_set('ap_pass', body['pass'])
+    if 'efectivo_actual' in body:
+        db_set('efectivo_actual', body['efectivo_actual'])
     return jsonify({'ok': True})
 
 
