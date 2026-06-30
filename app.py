@@ -12,7 +12,8 @@ if DATABASE_URL:
     import urllib.parse
 
     def get_db():
-        r = urllib.parse.urlparse(DATABASE_URL)
+        url = DATABASE_URL.split('?')[0]  # remove ?sslmode=require
+        r = urllib.parse.urlparse(url)
         return pg8000.native.Connection(
             host=r.hostname, port=r.port or 5432,
             database=r.path.lstrip('/'), user=r.username,
