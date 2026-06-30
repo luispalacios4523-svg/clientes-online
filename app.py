@@ -9,19 +9,38 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
     import pg8000.native
-    import urllib.parse
 
-    def get_db():
-        url = DATABASE_URL
+    def parse_db_url(url):
+        # Remove query string (?sslmode=require etc)
         if '?' in url:
             url = url[:url.index('?')]
-        # urlparse doesn't recognize postgresql:// so replace with http://
-        url_http = url.replace('postgresql://', 'http://', 1).replace('postgres://', 'http://', 1)
-        r = urllib.parse.urlparse(url_http)
+        # Remove scheme (postgresql:// or postgres://)
+        url = url.split('://', 1)[1]
+        # Split userinfo@hostinfo
+        userinfo, hostinfo = url.rsplit('@', 1)
+        # Parse user:password
+        if ':' in userinfo:
+            user, password = userinfo.split(':', 1)
+        else:
+            user, password = userinfo, ''
+        # Parse host:port/database
+        if '/' in hostinfo:
+            hostport, database = hostinfo.split('/', 1)
+        else:
+            hostport, database = hostinfo, 'postgres'
+        if ':' in hostport:
+            host, port_str = hostport.split(':', 1)
+            port = int(port_str)
+        else:
+            host, port = hostport, 5432
+        return host, port, database, user, password
+
+    def get_db():
+        host, port, database, user, password = parse_db_url(DATABASE_URL)
         return pg8000.native.Connection(
-            host=r.hostname, port=r.port or 5432,
-            database=r.path.lstrip('/'), user=r.username,
-            password=r.password, ssl_context=True
+            host=host, port=port,
+            database=database, user=user,
+            password=password, ssl_context=True
         )
 
     def init_db():
@@ -95,7 +114,10 @@ def save():
     return jsonify({'ok': True})
 
 
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f'DB init warning: {e}')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
