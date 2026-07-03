@@ -106,6 +106,26 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .btn-import{background:#3B82F6;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:13px;font-family:Arial,sans-serif;}
 .btn-borrar{background:#EF4444;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:13px;width:100%;font-family:Arial,sans-serif;margin-top:10px;}
 .backup-note{font-size:11px;color:#92400E;margin-top:8px;line-height:1.5;}
+/* Tarjetas de clientes */
+.cli-card{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:5px solid #3B82F6;}
+.cli-card.saldado{border-left-color:#10B981;opacity:.75;}
+.cli-card.renovado{border-left-color:#8B5CF6;opacity:.75;}
+.cli-card.vencido{border-left-color:#EF4444;}
+.cli-nom{font-size:18px;font-weight:800;color:#1E3A8A;margin-bottom:6px;cursor:pointer;}
+.cli-nom:hover{text-decoration:underline;}
+.cli-montos{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+.cli-mon-item{display:flex;flex-direction:column;background:#F8FAFC;border-radius:8px;padding:6px 12px;min-width:110px;}
+.cli-mon-item .lbl{font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;}
+.cli-mon-item .val{font-size:17px;font-weight:800;}
+.cli-info{font-size:12px;color:#64748B;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:8px;}
+.cli-info span{background:#F1F5F9;border-radius:6px;padding:2px 8px;}
+.cli-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.btn-pago{background:#10B981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;padding:7px 14px;font-family:Arial,sans-serif;}
+.btn-pago:hover{background:#059669;}
+.cli-qp{background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:12px;margin-top:10px;display:none;}
+.cli-qp.on{display:block;}
+.cli-qp .fr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.cli-qp input,.cli-qp select{font-family:Arial,sans-serif;font-size:14px;padding:9px 10px;border:1.5px solid #A7F3D0;border-radius:8px;width:100%;background:#fff;color:#1E293B;outline:none;}
 </style>
 </head>
 <body>
@@ -189,8 +209,8 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       </div>
       <div class="pa"><button class="bs" id="B-CR" style="background:#8B5CF6;">Renovar</button><button class="bg" id="B-XR">Cancelar</button></div>
     </div>
-    <p class="hint" id="hint-pre">Toca una fila para editar (solo admin)</p>
-    <div class="tw"><table><thead><tr><th>Nombre</th><th>Valor</th><th>Forma</th><th>Estado</th><th></th></tr></thead><tbody id="TB-pre"></tbody></table></div>
+    <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón 💰 para registrar pago rápido</p>
+    <div id="LIST-pre"></div>
   </div>
 </div>
 <div class="sec" id="S-pag">
@@ -378,7 +398,73 @@ ge('B-LG').onclick=function(){FP.g=null;ge('B-SG').classList.remove('on');ge('B-
 ge('B-HOY').onclick=function(){ge('rep-fec').value=hoy();rRep(false);};
 ge('rep-fec').oninput=function(){rRep(false);};
 ge('B-TODOS').onclick=function(){rRep(true);};
-function rPre(){var lst=FP.p?P.filter(FP.p):P;var r=ge('RES-P');if(FP.p){r.style.display='inline-block';r.textContent=lst.length+' resultado(s)';}else r.style.display='none';var tb=ge('TB-pre');if(!lst.length){tb.innerHTML='<tr><td colspan="5" class="em">Sin clientes registrados</td></tr>';return;}tb.innerHTML=lst.map(function(p){var s=saldo(p),pr=s===0&&p.est!=='renovado';var fp=p.fp||'efectivo';var eb=p.est==='renovado'?'<span class="bdg renovado">Renovado</span>':(s===0?'<span class="bdg saldado">Saldado</span>':'<span class="bdg activo">Activo</span>');var btnDel=isAdmin()?'<button class="bdel BD" data-id="'+p.id+'">X</button>':'';return '<tr class="rw'+(EID===p.id?' sel':'')+'" data-id="'+p.id+'"><td style="font-weight:700">'+p.nom+'</td><td style="color:#3B82F6;font-weight:700">'+fmt(p.mon)+'</td><td><span class="bdg '+fp+'">'+(fp==='efectivo'?'Efe':'Neq')+'</span></td><td>'+eb+'</td><td style="white-space:nowrap"><button class="bren BR" data-id="'+p.id+'"'+(pr?'':' disabled')+' style="margin-right:4px">R</button>'+btnDel+'</td></tr>';}).join('');}
+function rPre(){
+  var lst=FP.p?P.filter(FP.p):P;
+  var r=ge('RES-P');
+  if(FP.p){r.style.display='inline-block';r.textContent=lst.length+' resultado(s)';}else r.style.display='none';
+  var ct=ge('LIST-pre');
+  if(!lst.length){ct.innerHTML='<div class="em">Sin clientes registrados</div>';return;}
+  ct.innerHTML=lst.map(function(p){
+    var s=saldo(p);
+    var totPagar=p.mon*(1+p.int/100);
+    var cls=p.est==='renovado'?'renovado':(p.est==='saldado'||s===0?'saldado':'');
+    var estadoBdg=p.est==='renovado'?'<span class="bdg renovado">Renovado</span>':(s===0?'<span class="bdg saldado">Saldado</span>':'<span class="bdg activo">Activo</span>');
+    var btnDel=isAdmin()?'<button class="bdel BD" data-id="'+p.id+'" style="padding:7px 10px;font-size:12px">✕ Eliminar</button>':'';
+    var btnRen='<button class="bren BR" data-id="'+p.id+'"'+(s===0&&p.est!=='renovado'?'':' disabled')+' style="padding:7px 10px;font-size:12px">↺ Renovar</button>';
+    var info=[];
+    if(p.dir)info.push(p.dir);
+    if(p.ced)info.push('Cédula: '+p.ced);
+    if(p.tel)info.push('Tel: '+p.tel);
+    if(p.not)info.push(p.not);
+    return '<div class="cli-card '+cls+'" id="card-'+p.id+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+        '<div class="cli-nom ed-trigger" data-id="'+p.id+'">'+p.nom+'</div>'+
+        estadoBdg+
+      '</div>'+
+      '<div class="cli-montos">'+
+        '<div class="cli-mon-item"><span class="lbl">Préstamo</span><span class="val" style="color:#3B82F6">'+fmt(p.mon)+'</span></div>'+
+        (p.int?'<div class="cli-mon-item"><span class="lbl">Total a pagar</span><span class="val" style="color:#F59E0B">'+fmt(totPagar)+'</span></div>':'')+''+
+        '<div class="cli-mon-item"><span class="lbl">Saldo pendiente</span><span class="val" style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</span></div>'+
+        '<div class="cli-mon-item"><span class="lbl">Fecha</span><span class="val" style="font-size:13px;color:#64748B">'+p.fec+'</span></div>'+
+      '</div>'+
+      (info.length?'<div class="cli-info">'+info.map(function(i){return '<span>'+i+'</span>';}).join('')+'</div>':'')+
+      '<div class="cli-actions">'+
+        (s>0?'<button class="btn-pago QP" data-id="'+p.id+'">💰 Registrar Pago</button>':'')+
+        btnRen+btnDel+
+      '</div>'+
+      '<div class="cli-qp" id="qp-'+p.id+'">'+
+        '<div style="font-size:13px;font-weight:700;color:#065F46;margin-bottom:8px">Pago rápido — '+p.nom+'</div>'+
+        '<div class="fr">'+
+          '<div class="fg"><label>Monto ($)</label><input type="number" id="qp-mon-'+p.id+'" placeholder="0" min="1"></div>'+
+          '<div class="fg"><label>Fecha</label><input type="date" id="qp-fec-'+p.id+'" value="'+hoy()+'"></div>'+
+          '<div class="fg"><label>Forma</label><select id="qp-fp-'+p.id+'"><option value="efectivo">Efectivo</option><option value="nequi">Nequi</option></select></div>'+
+          '<div class="fg"><label>Nota</label><input type="text" id="qp-not-'+p.id+'" placeholder="Opcional"></div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<button class="bs QPG" data-id="'+p.id+'" style="flex:1">✓ Guardar Pago</button>'+
+          '<button class="bg QPC" data-id="'+p.id+'" style="padding:11px 16px">✕</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  // Eventos
+  ct.querySelectorAll('.ed-trigger').forEach(function(b){b.onclick=function(){if(!isAdmin())return;var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;EID=id;ge('e-nom').value=p.nom;ge('e-ced').value=p.ced||'';ge('e-tel').value=p.tel||'';ge('e-dir').value=p.dir||'';ge('e-mon').value=p.mon;ge('e-int').value=p.int;ge('e-fec').value=p.fec;ge('e-fp').value=p.fp||'efectivo';ge('e-not').value=p.not||'';ge('PNL-EP').classList.add('on');window.scrollTo(0,ge('PNL-EP').offsetTop-60);};});
+  ct.querySelectorAll('.QP').forEach(function(b){b.onclick=function(){var id=b.dataset.id;var qp=ge('qp-'+id);qp.classList.toggle('on');if(qp.classList.contains('on'))ge('qp-mon-'+id).focus();};});
+  ct.querySelectorAll('.QPC').forEach(function(b){b.onclick=function(){ge('qp-'+b.dataset.id).classList.remove('on');};});
+  ct.querySelectorAll('.QPG').forEach(function(b){b.onclick=function(){
+    var id=parseInt(b.dataset.id);
+    var mon=parseFloat(ge('qp-mon-'+id).value);
+    var fec=ge('qp-fec-'+id).value;
+    if(!mon||mon<=0)return alert('Ingresa un monto válido.');
+    if(!fec)return alert('Ingresa la fecha.');
+    var p=P.find(function(x){return x.id===id;});
+    PG.push({id:Date.now(),did:id,nom:p.nom,mon:mon,fec:fec,est:'pagado',fp:ge('qp-fp-'+id).value,not:ge('qp-not-'+id).value.trim()});
+    save();rAll();
+  };});
+  ct.querySelectorAll('.BR').forEach(function(b){b.onclick=function(){var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;RID=id;ge('r-nom').value=p.nom;ge('r-mon').value='';ge('r-int').value=p.int;ge('r-fec').value=hoy();ge('r-not').value='';ge('PNL-RN').classList.add('on');};});
+  ct.querySelectorAll('.BD').forEach(function(b){b.onclick=function(){if(!isAdmin())return;var id=parseInt(b.dataset.id);if(!confirm('¿Eliminar cliente?'))return;P=P.filter(function(x){return x.id!==id;});PG=PG.filter(function(x){return x.did!==id;});save();rAll();};});
+}
 function rPag(){var lst=FP.pg?PG.filter(FP.pg):PG;var r=ge('RES-PG'),td=ge('TOT-PG');if(FP.pg){r.style.display='inline-block';r.textContent=lst.length+' resultado(s)';var t=lst.filter(function(x){return x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0);ge('TOT-PG-L').textContent='Total filtrado:';ge('TOT-PG-V').textContent=fmt(t);td.style.display='flex';}else{r.style.display='none';td.style.display='none';}var tb=ge('TB-pag');if(!lst.length){tb.innerHTML='<tr><td colspan="7" class="em">Sin pagos registrados</td></tr>';return;}tb.innerHTML=lst.map(function(x){var fp=x.fp||'efectivo';var btnDel=isAdmin()?'<button class="bdel BDP" data-id="'+x.id+'">X</button>':'';return '<tr class="rw'+(EPGID===x.id?' sel':'')+'" data-id="'+x.id+'"><td style="font-weight:700">'+x.nom+'</td><td style="color:#10B981;font-weight:700">'+fmt(x.mon)+'</td><td>'+x.fec+'</td><td><span class="bdg '+fp+'">'+(fp==='efectivo'?'Efe':'Neq')+'</span></td><td><span class="bdg '+x.est+'">'+x.est.charAt(0).toUpperCase()+x.est.slice(1)+'</span></td><td style="color:#64748B">'+(x.not||'-')+'</td><td>'+btnDel+'</td></tr>';}).join('');}
 function rGas(){var lst=FP.g?G.filter(FP.g):G;var r=ge('RES-G'),td=ge('TOT-G');if(FP.g){r.style.display='inline-block';r.textContent=lst.length+' resultado(s)';var t=lst.reduce(function(s,x){return s+x.mon;},0);ge('TOT-G-L').textContent='Total filtrado:';ge('TOT-G-V').textContent=fmt(t);td.style.display='flex';}else{r.style.display='none';td.style.display='none';}var tb=ge('TB-gas');if(!lst.length){tb.innerHTML='<tr><td colspan="7" class="em">Sin gastos registrados</td></tr>';return;}tb.innerHTML=lst.map(function(x){var fp=x.fp||'efectivo';var btnDel=isAdmin()?'<button class="bdel BDG" data-id="'+x.id+'">X</button>':'';return '<tr class="rw'+(EGID===x.id?' sel':'')+'" data-id="'+x.id+'"><td style="font-weight:700">'+x.des+'</td><td style="color:#EF4444;font-weight:700">'+fmt(x.mon)+'</td><td>'+x.cat+'</td><td><span class="bdg '+fp+'">'+(fp==='efectivo'?'Efe':'Neq')+'</span></td><td style="color:#64748B">'+(x.not||'-')+'</td><td>'+x.fec+'</td><td>'+btnDel+'</td></tr>';}).join('');}
 function uHC(){var s=ge('his-cli'),vv=s.value;s.innerHTML='<option value="">Seleccionar...</option>'+P.map(function(p){return '<option value="'+p.id+'">'+p.nom+(p.est==='renovado'?' (Renovado)':'')+'</option>';}).join('');if(vv)s.value=vv;}
