@@ -211,7 +211,18 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       </div>
       <div class="pa"><button class="bs" id="B-CR" style="background:#8B5CF6;">Renovar</button><button class="bg" id="B-XR">Cancelar</button></div>
     </div>
-    <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón 💰 para registrar pago rápido</p>
+    <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón ✓ para guardar pago</p>
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+      <button id="btn-mic" onclick="iniciarVoz()" style="background:#3B82F6;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:Arial,sans-serif">🎤 Registrar pago por voz</button>
+      <div id="mic-status" style="font-size:13px;color:#64748B"></div>
+    </div>
+    <div id="mic-resultado" style="display:none;background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:10px">
+      <div id="mic-texto" style="font-size:13px;color:#065F46;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="confirmarVoz()" style="background:#10B981;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">✓ Confirmar</button>
+        <button onclick="cancelarVoz()" style="background:#F1F5F9;color:#64748B;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif">✕ Cancelar</button>
+      </div>
+    </div>
     <div id="LIST-pre"></div>
   </div>
 </div>
@@ -487,6 +498,97 @@ setInterval(function(){
     var el=ge('total-efectivo-global');if(el)el.textContent='$'+Number(tot).toLocaleString('es-CO');
   });
 },30000);
+
+// ── VOZ ──────────────────────────────────────────────────────
+var _vozPago=null;
+function parsearNumeroEsp(txt){
+  var t=txt.toLowerCase().trim();
+  var map={'cero':0,'un':1,'uno':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,'ocho':8,'nueve':9,
+    'diez':10,'once':11,'doce':12,'trece':13,'catorce':14,'quince':15,'dieciséis':16,'dieciseis':16,
+    'diecisiete':17,'dieciocho':18,'diecinueve':19,'veinte':20,'veintiuno':21,'veintidos':22,'veintidós':22,
+    'veintitres':23,'veintitrés':23,'veinticuatro':24,'veinticinco':25,'veintiseis':26,'veintisiete':27,
+    'veintiocho':28,'veintinueve':29,'treinta':30,'cuarenta':40,'cincuenta':50,'sesenta':60,'setenta':70,
+    'ochenta':80,'noventa':90,'cien':100,'ciento':100,'doscientos':200,'trescientos':300,'cuatrocientos':400,
+    'quinientos':500,'seiscientos':600,'setecientos':700,'ochocientos':800,'novecientos':900};
+  var num=0,cur=0;
+  var palabras=t.replace(/\s+/g,' ').split(' ');
+  palabras.forEach(function(p){
+    p=p.replace(/[.,]/g,'');
+    if(map[p]!==undefined){
+      if(map[p]>=100){if(cur===0)cur=1;cur*=map[p];num+=cur;cur=0;}
+      else cur+=map[p];
+    } else if(p==='mil'){
+      if(cur===0)cur=1;num+=cur*1000;cur=0;
+    } else if(p==='millón'||p==='millon'){
+      if(cur===0)cur=1;num+=cur*1000000;cur=0;
+    } else if(p==='millones'){
+      if(cur===0)cur=1;num+=cur*1000000;cur=0;
+    } else {
+      var n=parseFloat(p);
+      if(!isNaN(n))cur+=n;
+    }
+  });
+  return num+cur;
+}
+function detectarForma(txt){
+  var t=txt.toLowerCase();
+  if(t.includes('nequi'))return'nequi';
+  if(t.includes('transfer'))return'transferencia';
+  return'efectivo';
+}
+function buscarCliente(txt){
+  var t=txt.toLowerCase();
+  var mejor=null,maxScore=0;
+  P.forEach(function(p){
+    var nom=p.nom.toLowerCase();
+    var partes=nom.split(' ');
+    var score=0;
+    partes.forEach(function(parte){if(parte.length>2&&t.includes(parte))score++;});
+    if(score>maxScore){maxScore=score;mejor=p;}
+  });
+  return maxScore>0?mejor:null;
+}
+function iniciarVoz(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Su navegador no soporta voz. Use Chrome.');return;}
+  var btn=ge('btn-mic'),st=ge('mic-status');
+  btn.style.background='#EF4444';btn.textContent='🔴 Escuchando...';
+  st.textContent='Diga: "[nombre cliente] [monto] [efectivo/nequi]"';
+  var rec=new SR();
+  rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;
+  rec.onresult=function(e){
+    var texto=e.results[0][0].transcript;
+    btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';
+    var forma=detectarForma(texto);
+    var cliente=buscarCliente(texto);
+    // Extraer número: buscar secuencia numérica en palabras
+    var monto=parsearNumeroEsp(texto);
+    if(!monto){var m=texto.match(/[\d,.]+/);if(m)monto=parseFloat(m[0].replace(/\./g,'').replace(',','.'));}
+    _vozPago={cliente:cliente,monto:monto,forma:forma,texto:texto};
+    var res=ge('mic-resultado'),txt=ge('mic-texto');
+    if(cliente&&monto>0){
+      txt.innerHTML='<b>'+texto+'</b><br>→ Cliente: <b>'+cliente.nom+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
+      res.style.display='block';st.textContent='';
+    } else {
+      txt.innerHTML='<b>'+texto+'</b><br>⚠️ '+(cliente?'':'No encontré el cliente. ')+(!monto?'No entendí el monto.':'');
+      res.style.display='block';st.textContent='';
+    }
+  };
+  rec.onerror=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';st.textContent='Error de micrófono. Intente de nuevo.';};
+  rec.onend=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';};
+  rec.start();
+}
+function confirmarVoz(){
+  if(!_vozPago||!_vozPago.cliente||!_vozPago.monto)return alert('Datos incompletos. Intente de nuevo.');
+  var p=_vozPago.cliente,mon=_vozPago.monto,fp=_vozPago.forma;
+  PG.push({id:Date.now(),did:p.id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
+  save();rAll();
+  ge('mic-resultado').style.display='none';
+  ge('mic-status').textContent='✓ Pago registrado: '+p.nom+' '+fmt(mon)+' ('+fp+')';
+  _vozPago=null;
+  setTimeout(function(){ge('mic-status').textContent='';},4000);
+}
+function cancelarVoz(){ge('mic-resultado').style.display='none';_vozPago=null;ge('mic-status').textContent='';}
 </script>
 </body>
 </html>
