@@ -126,6 +126,8 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .fm-del{background:none;border:none;color:#EF4444;font-size:14px;cursor:pointer;padding:4px;}
 .fm-ren{background:none;border:none;color:#8B5CF6;font-size:16px;cursor:pointer;padding:4px;}
 .fm-ren:disabled{color:#CBD5E1;cursor:default;}
+.fm-ok{background:#10B981;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:800;cursor:pointer;padding:4px 8px;font-family:Arial,sans-serif;}
+.fm-ok:hover{background:#059669;}
 </style>
 </head>
 <body>
@@ -417,6 +419,7 @@ function rPre(){
       '<div class="fm-inp">'+
         '<input type="number" class="fm-pago-inp" data-id="'+p.id+'" placeholder="0" min="1"'+(s===0?' disabled':'')+'/>'+
         '<select class="fm-fp-sel" data-id="'+p.id+'"><option value="efectivo">Efe</option><option value="nequi">Neq</option><option value="transferencia">Tra</option></select>'+
+        (s>0?'<button class="fm-ok QPG" data-id="'+p.id+'" title="Guardar pago">✓</button>':'')+
       '</div>'+
       '<div class="fm-val">'+fmt(totPagar)+'</div>'+
       '<div class="fm-sal" style="color:'+saldoColor+';font-weight:800">'+fmt(s)+'</div>'+
@@ -427,20 +430,21 @@ function rPre(){
     '</div>';
   }).join('');
 
+  function guardarPago(id){
+    var inp=ct.querySelector('.fm-pago-inp[data-id="'+id+'"]');
+    var mon=parseFloat(inp.value);
+    if(!mon||mon<=0)return alert('Ingresa un monto mayor a 0.');
+    var p=P.find(function(x){return x.id===id;});
+    if(!p)return;
+    var fp=ct.querySelector('.fm-fp-sel[data-id="'+id+'"]').value;
+    PG.push({id:Date.now(),did:id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:''});
+    save();rAll();
+  }
   ct.querySelectorAll('.fm-pago-inp').forEach(function(inp){
-    inp.onkeydown=function(e){
-      if(e.key==='Enter'){
-        var id=parseInt(inp.dataset.id);
-        var mon=parseFloat(inp.value);
-        if(!mon||mon<=0)return;
-        var p=P.find(function(x){return x.id===id;});
-        if(!p)return;
-        var fp=ct.querySelector('.fm-fp-sel[data-id="'+id+'"]').value;
-        PG.push({id:Date.now(),did:id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:''});
-        inp.value='';
-        save();rAll();
-      }
-    };
+    inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();guardarPago(parseInt(inp.dataset.id));}};
+  });
+  ct.querySelectorAll('.QPG').forEach(function(b){
+    b.onclick=function(){guardarPago(parseInt(b.dataset.id));};
   });
   ct.querySelectorAll('.ed-trigger').forEach(function(b){b.onclick=function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='BUTTON')return;if(!isAdmin())return;var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;EID=id;ge('e-nom').value=p.nom;ge('e-ced').value=p.ced||'';ge('e-tel').value=p.tel||'';ge('e-dir').value=p.dir||'';ge('e-mon').value=p.mon;ge('e-int').value=p.int;ge('e-fec').value=p.fec;ge('e-fp').value=p.fp||'efectivo';ge('e-not').value=p.not||'';ge('PNL-EP').classList.add('on');window.scrollTo(0,ge('PNL-EP').offsetTop-60);};});
   ct.querySelectorAll('.BR').forEach(function(b){b.onclick=function(){var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;RID=id;ge('r-nom').value=p.nom;ge('r-mon').value='';ge('r-int').value=p.int;ge('r-fec').value=hoy();ge('r-not').value='';ge('PNL-RN').classList.add('on');};});
