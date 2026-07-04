@@ -218,7 +218,13 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
     </div>
     <div id="mic-resultado" style="display:none;background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:10px">
       <div id="mic-texto" style="font-size:13px;color:#065F46;margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;color:#065F46;font-weight:700">Forma de pago:</label>
+        <select id="mic-forma" style="font-family:Arial,sans-serif;font-size:13px;padding:7px 10px;border:1.5px solid #A7F3D0;border-radius:8px;background:#fff">
+          <option value="efectivo">Efectivo</option>
+          <option value="nequi">Nequi</option>
+          <option value="transferencia">Transferencia</option>
+        </select>
         <button onclick="confirmarVoz()" style="background:#10B981;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">✓ Confirmar</button>
         <button onclick="cancelarVoz()" style="background:#F1F5F9;color:#64748B;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif">✕ Cancelar</button>
       </div>
@@ -602,15 +608,16 @@ function iniciarVoz(){
 function confirmarVoz(){
   if(!_vozDato||!_vozDato.monto)return alert('Datos incompletos. Intente de nuevo.');
   var d=_vozDato;
+  var fp=ge('mic-forma').value||d.forma;
   if(d.tipo==='pago'){
     if(!d.cliente)return alert('No se identificó el cliente. Intente de nuevo.');
-    PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:d.forma,not:'[voz]'});
-    ge('mic-status').textContent='✓ Pago: '+d.cliente.nom+' '+fmt(d.monto)+' ('+d.forma+')';
+    PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
+    ge('mic-status').textContent='✓ Pago: '+d.cliente.nom+' '+fmt(d.monto)+' ('+fp+')';
   } else if(d.tipo==='gasto'){
-    G.push({id:Date.now(),des:d.desc,mon:d.monto,fec:hoy(),cat:'General',fp:d.forma,not:'[voz]'});
+    G.push({id:Date.now(),des:d.desc,mon:d.monto,fec:hoy(),cat:'General',fp:fp,not:'[voz]'});
     ge('mic-status').textContent='✓ Gasto: '+d.desc+' '+fmt(d.monto);
   } else if(d.tipo==='prestamo'){
-    P.push(nP({id:Date.now(),nom:d.nombre,mon:d.monto,int:0,fec:hoy(),fp:d.forma,est:'activo',not:'[voz]'}));
+    P.push(nP({id:Date.now(),nom:d.nombre,mon:d.monto,int:0,fec:hoy(),fp:fp,est:'activo',not:'[voz]'}));
     ge('mic-status').textContent='✓ Préstamo: '+d.nombre+' '+fmt(d.monto);
   }
   save();rAll();
