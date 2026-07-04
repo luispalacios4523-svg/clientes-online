@@ -500,7 +500,7 @@ setInterval(function(){
 },30000);
 
 // ── VOZ ──────────────────────────────────────────────────────
-var _vozPago=null;
+var _vozDato=null;
 function parsearNumeroEsp(txt){
   var t=txt.toLowerCase().trim();
   var map={'cero':0,'un':1,'uno':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,'ocho':8,'nueve':9,
@@ -511,22 +511,14 @@ function parsearNumeroEsp(txt){
     'ochenta':80,'noventa':90,'cien':100,'ciento':100,'doscientos':200,'trescientos':300,'cuatrocientos':400,
     'quinientos':500,'seiscientos':600,'setecientos':700,'ochocientos':800,'novecientos':900};
   var num=0,cur=0;
-  var palabras=t.replace(/\s+/g,' ').split(' ');
-  palabras.forEach(function(p){
+  t.replace(/\s+/g,' ').split(' ').forEach(function(p){
     p=p.replace(/[.,]/g,'');
     if(map[p]!==undefined){
       if(map[p]>=100){if(cur===0)cur=1;cur*=map[p];num+=cur;cur=0;}
       else cur+=map[p];
-    } else if(p==='mil'){
-      if(cur===0)cur=1;num+=cur*1000;cur=0;
-    } else if(p==='millón'||p==='millon'){
-      if(cur===0)cur=1;num+=cur*1000000;cur=0;
-    } else if(p==='millones'){
-      if(cur===0)cur=1;num+=cur*1000000;cur=0;
-    } else {
-      var n=parseFloat(p);
-      if(!isNaN(n))cur+=n;
-    }
+    } else if(p==='mil'){if(cur===0)cur=1;num+=cur*1000;cur=0;
+    } else if(p==='millón'||p==='millon'||p==='millones'){if(cur===0)cur=1;num+=cur*1000000;cur=0;
+    } else {var n=parseFloat(p);if(!isNaN(n))cur+=n;}
   });
   return num+cur;
 }
@@ -536,59 +528,97 @@ function detectarForma(txt){
   if(t.includes('transfer'))return'transferencia';
   return'efectivo';
 }
+function detectarIntencion(txt){
+  var t=txt.toLowerCase();
+  if(t.startsWith('gasto')||t.startsWith('gasté')||t.startsWith('gaste')||t.includes('gasto de'))return'gasto';
+  if(t.startsWith('préstamo')||t.startsWith('prestamo')||t.startsWith('nuevo cliente')||t.startsWith('cliente nuevo'))return'prestamo';
+  return'pago';
+}
 function buscarCliente(txt){
   var t=txt.toLowerCase();
   var mejor=null,maxScore=0;
   P.forEach(function(p){
     var nom=p.nom.toLowerCase();
-    var partes=nom.split(' ');
     var score=0;
-    partes.forEach(function(parte){if(parte.length>2&&t.includes(parte))score++;});
+    nom.split(' ').forEach(function(parte){if(parte.length>2&&t.includes(parte))score++;});
     if(score>maxScore){maxScore=score;mejor=p;}
   });
   return maxScore>0?mejor:null;
+}
+function extraerDescripcion(txt,quitarPalabras){
+  var t=txt.toLowerCase();
+  quitarPalabras.forEach(function(p){t=t.replace(p,'');});
+  // quitar forma de pago y números
+  t=t.replace(/nequi|transferencia|efectivo/g,'').replace(/[\d,.]+/g,'');
+  // quitar palabras de números en español
+  ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince',
+   'veinte','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa','cien','ciento','doscientos','trescientos',
+   'cuatrocientos','quinientos','mil','millón','millon','millones'].forEach(function(p){t=t.replace(new RegExp('\\b'+p+'\\b','g'),'');});
+  return t.replace(/\s+/g,' ').trim();
 }
 function iniciarVoz(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){alert('Su navegador no soporta voz. Use Chrome.');return;}
   var btn=ge('btn-mic'),st=ge('mic-status');
   btn.style.background='#EF4444';btn.textContent='🔴 Escuchando...';
-  st.textContent='Diga: "[nombre cliente] [monto] [efectivo/nequi]"';
+  st.textContent='Diga: "pago [cliente] [monto]" · "gasto [concepto] [monto]" · "préstamo [nombre] [monto]"';
   var rec=new SR();
   rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;
   rec.onresult=function(e){
     var texto=e.results[0][0].transcript;
-    btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';
+    btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';
+    var intencion=detectarIntencion(texto);
     var forma=detectarForma(texto);
-    var cliente=buscarCliente(texto);
-    // Extraer número: buscar secuencia numérica en palabras
     var monto=parsearNumeroEsp(texto);
     if(!monto){var m=texto.match(/[\d,.]+/);if(m)monto=parseFloat(m[0].replace(/\./g,'').replace(',','.'));}
-    _vozPago={cliente:cliente,monto:monto,forma:forma,texto:texto};
-    var res=ge('mic-resultado'),txt=ge('mic-texto');
-    if(cliente&&monto>0){
-      txt.innerHTML='<b>'+texto+'</b><br>→ Cliente: <b>'+cliente.nom+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
-      res.style.display='block';st.textContent='';
+    var resEl=ge('mic-resultado'),txtEl=ge('mic-texto');
+    st.textContent='';
+
+    if(intencion==='gasto'){
+      var desc=extraerDescripcion(texto,['gasto','gasté','gaste']);
+      _vozDato={tipo:'gasto',desc:desc||'Gasto',monto:monto,forma:forma,texto:texto};
+      txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>GASTO</b>: <b>'+(desc||'Gasto')+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
+      resEl.style.display='block';
+    } else if(intencion==='prestamo'){
+      var nombre=extraerDescripcion(texto,['préstamo','prestamo','nuevo cliente','cliente nuevo']);
+      _vozDato={tipo:'prestamo',nombre:nombre||'',monto:monto,forma:forma,texto:texto};
+      txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>PRÉSTAMO</b>: <b>'+(nombre||'(sin nombre)')+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
+      resEl.style.display='block';
     } else {
-      txt.innerHTML='<b>'+texto+'</b><br>⚠️ '+(cliente?'':'No encontré el cliente. ')+(!monto?'No entendí el monto.':'');
-      res.style.display='block';st.textContent='';
+      var cliente=buscarCliente(texto);
+      _vozDato={tipo:'pago',cliente:cliente,monto:monto,forma:forma,texto:texto};
+      if(cliente&&monto>0){
+        txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>PAGO</b>: <b>'+cliente.nom+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
+      } else {
+        txtEl.innerHTML='<b>'+texto+'</b><br>⚠️ '+(cliente?'':'No encontré el cliente. ')+(!monto?'No entendí el monto.':'');
+      }
+      resEl.style.display='block';
     }
   };
-  rec.onerror=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';st.textContent='Error de micrófono. Intente de nuevo.';};
-  rec.onend=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Registrar pago por voz';};
+  rec.onerror=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';st.textContent='Error de micrófono. Intente de nuevo.';};
+  rec.onend=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';};
   rec.start();
 }
 function confirmarVoz(){
-  if(!_vozPago||!_vozPago.cliente||!_vozPago.monto)return alert('Datos incompletos. Intente de nuevo.');
-  var p=_vozPago.cliente,mon=_vozPago.monto,fp=_vozPago.forma;
-  PG.push({id:Date.now(),did:p.id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
+  if(!_vozDato||!_vozDato.monto)return alert('Datos incompletos. Intente de nuevo.');
+  var d=_vozDato;
+  if(d.tipo==='pago'){
+    if(!d.cliente)return alert('No se identificó el cliente. Intente de nuevo.');
+    PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:d.forma,not:'[voz]'});
+    ge('mic-status').textContent='✓ Pago: '+d.cliente.nom+' '+fmt(d.monto)+' ('+d.forma+')';
+  } else if(d.tipo==='gasto'){
+    G.push({id:Date.now(),des:d.desc,mon:d.monto,fec:hoy(),cat:'General',fp:d.forma,not:'[voz]'});
+    ge('mic-status').textContent='✓ Gasto: '+d.desc+' '+fmt(d.monto);
+  } else if(d.tipo==='prestamo'){
+    P.push(nP({id:Date.now(),nom:d.nombre,mon:d.monto,int:0,fec:hoy(),fp:d.forma,est:'activo',not:'[voz]'}));
+    ge('mic-status').textContent='✓ Préstamo: '+d.nombre+' '+fmt(d.monto);
+  }
   save();rAll();
   ge('mic-resultado').style.display='none';
-  ge('mic-status').textContent='✓ Pago registrado: '+p.nom+' '+fmt(mon)+' ('+fp+')';
-  _vozPago=null;
+  _vozDato=null;
   setTimeout(function(){ge('mic-status').textContent='';},4000);
 }
-function cancelarVoz(){ge('mic-resultado').style.display='none';_vozPago=null;ge('mic-status').textContent='';}
+function cancelarVoz(){ge('mic-resultado').style.display='none';_vozDato=null;ge('mic-status').textContent='';}
 </script>
 </body>
 </html>
