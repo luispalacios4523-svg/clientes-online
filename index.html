@@ -457,18 +457,8 @@ function rPre(){
     if(!p)return;
     var fp=row.querySelector('.fm-fp-sel').value;
     PG.push({id:Date.now(),did:id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:''});
-    inp.value='';
-    // Actualiza solo el saldo de esta fila sin re-renderizar toda la lista
-    var nuevoSaldo=saldo(p);
-    var salEl=row.querySelector('.fm-sal');
-    if(salEl){salEl.textContent=fmt(nuevoSaldo);salEl.style.color=nuevoSaldo>0?'#EF4444':'#10B981';}
-    if(nuevoSaldo===0){inp.disabled=true;var okBtn=row.querySelector('.fm-ok');if(okBtn)okBtn.style.display='none';}
-    // Confirma visualmente
-    var okBtn=row.querySelector('.fm-ok');
-    if(okBtn){okBtn.textContent='✓ OK';setTimeout(function(){if(okBtn)okBtn.textContent='✓';},1500);}
     save();
-    // Actualiza resumen sin re-renderizar lista
-    rRes();
+    rAll();
   }
   ct.querySelectorAll('.QPG').forEach(function(b){
     b.onclick=function(){registrarPagoFila(parseInt(b.dataset.id));};
