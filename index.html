@@ -134,6 +134,36 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .fm-ren:disabled{color:#CBD5E1;cursor:default;}
 .fm-ok{background:#10B981;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:800;cursor:pointer;padding:4px 8px;font-family:Arial,sans-serif;}
 .fm-ok:hover{background:#059669;}
+/* ── Confirmacion por voz a pantalla completa ── */
+.vz-ov{position:fixed;inset:0;background:rgba(15,23,42,.94);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;}
+.vz-ov.on{display:flex;}
+.vz-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:430px;text-align:center;max-height:92vh;overflow-y:auto;}
+.vz-paso{font-size:12px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.vz-cli{font-size:28px;font-weight:800;color:#1E3A8A;line-height:1.2;margin-bottom:4px;word-break:break-word;}
+.vz-meta{font-size:13px;color:#64748B;margin-bottom:14px;}
+.vz-mon{font-size:52px;font-weight:800;color:#10B981;line-height:1;margin:8px 0;}
+.vz-oido{font-size:12px;color:#94A3B8;font-style:italic;margin-bottom:14px;word-break:break-word;}
+.vz-saldos{background:#F8FAFC;border-radius:12px;padding:12px;margin-bottom:16px;display:flex;justify-content:space-around;}
+.vz-saldos>div{flex:1;}
+.vz-saldos .l{font-size:10px;color:#64748B;font-weight:700;text-transform:uppercase;}
+.vz-saldos .v{font-size:16px;font-weight:800;margin-top:2px;}
+.vz-alert{background:#FFFBEB;border:2px solid #F59E0B;color:#92400E;border-radius:12px;padding:11px;font-size:13px;font-weight:700;margin-bottom:12px;}
+.vz-x1000{background:#FFFBEB;border:2px solid #F59E0B;color:#92400E;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;padding:13px;width:100%;font-family:Arial,sans-serif;margin-bottom:12px;}
+.vz-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.vz-si{background:#10B981;color:#fff;border:none;border-radius:14px;font-size:20px;font-weight:800;cursor:pointer;padding:21px;font-family:Arial,sans-serif;grid-column:span 2;}
+.vz-rep{background:#EFF6FF;color:#3B82F6;border:2px solid #BFDBFE;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;padding:16px;font-family:Arial,sans-serif;}
+.vz-no{background:#FEF2F2;color:#EF4444;border:2px solid #FECACA;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;padding:16px;font-family:Arial,sans-serif;}
+.vz-esc{font-size:64px;margin:22px 0;animation:pulso 1.2s infinite;}
+@keyframes pulso{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(1.12);}}
+.vz-cand{display:block;width:100%;background:#F8FAFC;border:2px solid #E2E8F0;border-radius:12px;padding:16px;margin-bottom:9px;font-family:Arial,sans-serif;cursor:pointer;text-align:left;}
+.vz-cand:hover{border-color:#3B82F6;background:#EFF6FF;}
+.vz-cand .n{font-size:18px;font-weight:800;color:#1E3A8A;}
+.vz-cand .d{font-size:12px;color:#64748B;margin-top:2px;}
+.vz-cand .num{display:inline-block;background:#3B82F6;color:#fff;border-radius:50%;width:26px;height:26px;line-height:26px;text-align:center;font-weight:800;font-size:14px;margin-right:9px;}
+.vz-fp{display:flex;gap:7px;margin-bottom:14px;}
+.vz-fp button{flex:1;background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:13px 4px;font-family:Arial,sans-serif;}
+.vz-fp button.on{background:#3B82F6;color:#fff;border-color:#3B82F6;}
+.vz-mic-big{background:#3B82F6;color:#fff;border:none;border-radius:14px;padding:17px 22px;font-size:16px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;}
 </style>
 </head>
 <body>
@@ -230,21 +260,11 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <div class="pa"><button class="bs" id="B-CR" style="background:#8B5CF6;">Renovar</button><button class="bg" id="B-XR">Cancelar</button></div>
     </div>
     <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón ✓ para guardar pago</p>
-    <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
-      <button id="btn-mic" onclick="iniciarVoz()" style="background:#3B82F6;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:Arial,sans-serif">🎤 Registrar pago por voz</button>
-      <div id="mic-status" style="font-size:13px;color:#64748B"></div>
-    </div>
-    <div id="mic-resultado" style="display:none;background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:10px">
-      <div id="mic-texto" style="font-size:13px;color:#065F46;margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:13px;color:#065F46;font-weight:700">Forma de pago:</label>
-        <select id="mic-forma" style="font-family:Arial,sans-serif;font-size:13px;padding:7px 10px;border:1.5px solid #A7F3D0;border-radius:8px;background:#fff">
-          <option value="efectivo">Efectivo</option>
-          <option value="nequi">Nequi</option>
-          <option value="transferencia">Transferencia</option>
-        </select>
-        <button onclick="confirmarVoz()" style="background:#10B981;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">✓ Confirmar</button>
-        <button onclick="cancelarVoz()" style="background:#F1F5F9;color:#64748B;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif">✕ Cancelar</button>
+    <div style="margin-bottom:12px">
+      <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Registrar por voz</button>
+      <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
+      <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
+        Diga: <b>"abono Patricia veinte mil"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
       </div>
     </div>
     <div id="LIST-pre"></div>
@@ -385,6 +405,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
   </div>
 </div>
 </div></div>
+<div class="vz-ov" id="VZ-OV"><div class="vz-card" id="VZ-CARD"></div></div>
 <script>
 var P=[],PG=[],G=[],CI=0,EID=null,RID=null,EPGID=null,EGID=null,FP={p:null,pg:null,g:null};
 var ROL=null;
@@ -581,17 +602,53 @@ function detectarIntencion(txt){
   if(t.startsWith('préstamo')||t.startsWith('prestamo')||t.startsWith('nuevo cliente')||t.startsWith('cliente nuevo'))return'prestamo';
   return'pago';
 }
-function buscarCliente(txt){
-  var t=txt.toLowerCase();
-  var mejor=null,maxScore=0;
-  P.forEach(function(p){
-    var nom=p.nom.toLowerCase();
-    var score=0;
-    nom.split(' ').forEach(function(parte){if(parte.length>2&&t.includes(parte))score++;});
-    if(score>maxScore){maxScore=score;mejor=p;}
-  });
-  return maxScore>0?mejor:null;
+// Normaliza: minusculas, sin acentos, sin signos
+function norm(s){
+  return (s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim();
 }
+// Distancia de edicion (tolera errores del microfono)
+function edit(a,b){
+  var m=a.length,n=b.length;
+  if(!m)return n; if(!n)return m;
+  var prev=[],cur=[],i,j;
+  for(j=0;j<=n;j++)prev[j]=j;
+  for(i=1;i<=m;i++){
+    cur[0]=i;
+    for(j=1;j<=n;j++){
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    for(j=0;j<=n;j++)prev[j]=cur[j];
+  }
+  return prev[n];
+}
+// Que tan parecidas son dos palabras: 1 = identicas, 0 = nada
+function simil(a,b){
+  if(a===b)return 1;
+  if(a.length>3&&b.length>3&&(a.indexOf(b)===0||b.indexOf(a)===0))return 0.92;
+  var d=edit(a,b),max=Math.max(a.length,b.length);
+  return max?1-d/max:0;
+}
+// Devuelve candidatos ordenados por parecido con lo que se escucho
+function rankClientes(txt){
+  var pal=norm(txt).split(' ').filter(function(w){return w.length>2;});
+  if(!pal.length)return [];
+  var activos=P.filter(function(p){return p.est!=='renovado';});
+  var res=activos.map(function(p){
+    var partes=norm(p.nom).split(' ').filter(function(w){return w.length>1;});
+    var score=0;
+    partes.forEach(function(parte){
+      var mejor=0;
+      pal.forEach(function(w){var s=simil(parte,w);if(s>mejor)mejor=s;});
+      if(mejor>=0.72)score+=mejor;
+    });
+    return {p:p,score:score};
+  }).filter(function(x){return x.score>=0.72;});
+  res.sort(function(a,b){return b.score-a.score;});
+  return res;
+}
+function buscarCliente(txt){var r=rankClientes(txt);return r.length?r[0].p:null;}
 function extraerDescripcion(txt,quitarPalabras){
   var t=txt.toLowerCase();
   quitarPalabras.forEach(function(p){t=t.replace(p,'');});
@@ -603,70 +660,194 @@ function extraerDescripcion(txt,quitarPalabras){
    'cuatrocientos','quinientos','mil','millón','millon','millones'].forEach(function(p){t=t.replace(new RegExp('\\b'+p+'\\b','g'),'');});
   return t.replace(/\s+/g,' ').trim();
 }
+// ── Hablar en voz alta (para no tener que mirar la pantalla) ──
+function decir(txt){
+  try{
+    if(!window.speechSynthesis)return;
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(txt);
+    u.lang='es-CO';u.rate=1.05;u.volume=1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function ovMostrar(html){ge('VZ-CARD').innerHTML=html;ge('VZ-OV').classList.add('on');}
+function ovCerrar(){ge('VZ-OV').classList.remove('on');_vozDato=null;try{speechSynthesis.cancel();}catch(e){}}
+function _flash(msg){var st=ge('mic-status');if(st){st.textContent=msg;setTimeout(function(){if(st.textContent===msg)st.textContent='';},5000);}}
+
 function iniciarVoz(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){alert('Su navegador no soporta voz. Use Chrome.');return;}
-  var btn=ge('btn-mic'),st=ge('mic-status');
-  btn.style.background='#EF4444';btn.textContent='🔴 Escuchando...';
-  st.textContent='Diga: "pago [cliente] [monto]" · "gasto [concepto] [monto]" · "préstamo [nombre] [monto]"';
+  ovMostrar('<div class="vz-paso">Escuchando…</div>'+
+    '<div class="vz-esc">🎤</div>'+
+    '<div style="font-size:16px;color:#64748B;margin-bottom:20px;line-height:1.5">Diga el <b>nombre</b> y el <b>monto</b><br><span style="font-size:13px">ej: "abono Patricia veinte mil"</span></div>'+
+    '<button class="vz-no" style="width:100%" onclick="ovCerrar()">✕ Cancelar</button>');
   var rec=new SR();
-  rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;
+  rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;rec.maxAlternatives=3;
+  var proceso=false;
   rec.onresult=function(e){
-    var texto=e.results[0][0].transcript;
-    btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';
-    var intencion=detectarIntencion(texto);
-    var forma=detectarForma(texto);
-    var monto=parsearNumeroEsp(texto);
-    if(!monto){var m=texto.match(/[\d,.]+/);if(m)monto=parseFloat(m[0].replace(/\./g,'').replace(',','.'));}
-    var resEl=ge('mic-resultado'),txtEl=ge('mic-texto');
-    st.textContent='';
-
-    if(intencion==='gasto'){
-      var desc=extraerDescripcion(texto,['gasto','gasté','gaste']);
-      _vozDato={tipo:'gasto',desc:desc||'Gasto',monto:monto,forma:forma,texto:texto};
-      txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>GASTO</b>: <b>'+(desc||'Gasto')+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
-      resEl.style.display='block';
-    } else if(intencion==='prestamo'){
-      var nombre=extraerDescripcion(texto,['préstamo','prestamo','nuevo cliente','cliente nuevo']);
-      _vozDato={tipo:'prestamo',nombre:nombre||'',monto:monto,forma:forma,texto:texto};
-      txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>PRÉSTAMO</b>: <b>'+(nombre||'(sin nombre)')+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
-      resEl.style.display='block';
-    } else {
-      var cliente=buscarCliente(texto);
-      _vozDato={tipo:'pago',cliente:cliente,monto:monto,forma:forma,texto:texto};
-      if(cliente&&monto>0){
-        txtEl.innerHTML='<b>'+texto+'</b><br>→ <b>PAGO</b>: <b>'+cliente.nom+'</b> | Monto: <b>'+fmt(monto)+'</b> | Forma: <b>'+forma+'</b>';
-      } else {
-        txtEl.innerHTML='<b>'+texto+'</b><br>⚠️ '+(cliente?'':'No encontré el cliente. ')+(!monto?'No entendí el monto.':'');
-      }
-      resEl.style.display='block';
-    }
+    proceso=true;
+    var alts=[];
+    for(var i=0;i<e.results[0].length;i++)alts.push(e.results[0][i].transcript);
+    procesarVoz(alts);
   };
-  rec.onerror=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';st.textContent='Error de micrófono. Intente de nuevo.';};
-  rec.onend=function(){btn.style.background='#3B82F6';btn.textContent='🎤 Hablar';};
-  rec.start();
+  rec.onerror=function(ev){
+    proceso=true;
+    var msg=ev.error==='no-speech'?'No escuché nada.':(ev.error==='not-allowed'?'Permiso de micrófono denegado.':'Error de micrófono.');
+    ovError(msg,'');
+  };
+  rec.onend=function(){if(!proceso)ovError('No escuché nada.','');};
+  try{rec.start();}catch(e){ovCerrar();alert('No se pudo iniciar el micrófono.');}
 }
-function confirmarVoz(){
-  if(!_vozDato||!_vozDato.monto)return alert('Datos incompletos. Intente de nuevo.');
-  var d=_vozDato;
-  var fp=ge('mic-forma').value||d.forma;
+
+function procesarVoz(alts){
+  var texto=alts[0];
+  var intencion=detectarIntencion(texto);
+  var forma=detectarForma(texto);
+  // Probar todas las alternativas del microfono y quedarse con la que dé mejor resultado
+  var monto=0;
+  for(var i=0;i<alts.length&&!monto;i++){
+    monto=parsearNumeroEsp(alts[i]);
+    if(!monto){var m=alts[i].match(/[\d][\d,.]*/);if(m)monto=parseFloat(m[0].replace(/\./g,'').replace(/,/g,''));}
+  }
+  if(intencion==='gasto'){
+    var desc=extraerDescripcion(texto,['gasto','gasté','gaste']);
+    _vozDato={tipo:'gasto',desc:desc||'Gasto',monto:monto,forma:forma,texto:texto};
+    if(!monto)return ovError('No entendí el monto.',texto);
+    return ovConfirmar();
+  }
+  if(intencion==='prestamo'){
+    var nombre=extraerDescripcion(texto,['préstamo','prestamo','nuevo cliente','cliente nuevo']);
+    _vozDato={tipo:'prestamo',nombre:nombre||'',monto:monto,forma:forma,texto:texto};
+    if(!monto)return ovError('No entendí el monto.',texto);
+    if(!nombre)return ovError('No entendí el nombre.',texto);
+    return ovConfirmar();
+  }
+  // ── PAGO ──
+  if(!monto)return ovError('No entendí el monto.',texto);
+  // Buscar candidatos en todas las alternativas del microfono
+  var cands=[],vistos={};
+  alts.forEach(function(a){
+    rankClientes(a).forEach(function(c){
+      if(!vistos[c.p.id]){vistos[c.p.id]=1;cands.push(c);}
+      else{var ex=cands.filter(function(x){return x.p.id===c.p.id;})[0];if(ex&&c.score>ex.score)ex.score=c.score;}
+    });
+  });
+  cands.sort(function(a,b){return b.score-a.score;});
+  if(!cands.length)return ovError('No encontré ese cliente.',texto);
+  // Si el segundo candidato está muy cerca del primero, preguntar cuál es
+  var dudoso=cands.length>1&&(cands[0].score-cands[1].score)<0.35;
+  if(dudoso){
+    _vozDato={tipo:'pago',monto:monto,forma:forma,texto:texto};
+    return ovElegir(cands.slice(0,4),monto,texto);
+  }
+  _vozDato={tipo:'pago',cliente:cands[0].p,monto:monto,forma:forma,texto:texto};
+  ovConfirmar();
+}
+
+function ovError(msg,texto){
+  ovMostrar('<div class="vz-paso">No se pudo registrar</div>'+
+    '<div class="vz-err">⚠️ '+msg+'</div>'+
+    (texto?'<div class="vz-oido">Escuché: "'+texto+'"</div>':'')+
+    '<div class="vz-btns"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button></div>');
+  decir(msg);
+}
+
+function ovElegir(cands,monto,texto){
+  var h='<div class="vz-paso">¿Cuál cliente?</div>'+
+    '<div class="vz-mon">'+fmt(monto)+'</div>'+
+    '<div class="vz-oido">Escuché: "'+texto+'"</div>'+
+    cands.map(function(c,i){
+      var s=saldo(c.p);
+      return '<button class="vz-cand" onclick="vzElegido('+c.p.id+')">'+
+        '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
+        '<div class="d">Saldo: '+fmt(s)+(c.p.dir?' · '+c.p.dir:'')+'</div></button>';
+    }).join('')+
+    '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
+  ovMostrar(h);
+  decir('Encontré varios parecidos. ¿Cuál es?');
+}
+function vzElegido(id){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p||!_vozDato)return ovCerrar();
+  _vozDato.cliente=p;
+  ovConfirmar();
+}
+
+function ovConfirmar(){
+  var d=_vozDato;if(!d)return;
+  var fp=d.forma||'efectivo';
+  var nomFp=fp==='efectivo'?'Efectivo':(fp==='nequi'?'Nequi':'Transferencia');
+  var h='',hablar='';
   if(d.tipo==='pago'){
-    if(!d.cliente)return alert('No se identificó el cliente. Intente de nuevo.');
+    var s=saldo(d.cliente),desp=Math.max(0,s-d.monto);
+    h='<div class="vz-paso">Confirmar abono</div>'+
+      '<div class="vz-cli">'+d.cliente.nom+'</div>'+
+      '<div class="vz-meta">'+(d.cliente.dir||'')+'</div>'+
+      '<div class="vz-mon">'+fmt(d.monto)+'</div>'+
+      '<div class="vz-oido">Escuché: "'+d.texto+'"</div>'+
+      (d.monto>s?'<div class="vz-alert">⚠️ El abono es mayor que el saldo ('+fmt(s)+')</div>':'')+
+      '<div class="vz-saldos"><div><div class="l">Saldo ahora</div><div class="v" style="color:#EF4444">'+fmt(s)+'</div></div>'+
+      '<div><div class="l">Saldo después</div><div class="v" style="color:#10B981">'+fmt(desp)+'</div></div></div>';
+    hablar='Abono de '+d.cliente.nom+', '+d.monto.toLocaleString('es-CO')+' pesos. ¿Confirmo?';
+  } else if(d.tipo==='gasto'){
+    h='<div class="vz-paso">Confirmar gasto</div>'+
+      '<div class="vz-cli">'+d.desc+'</div>'+
+      '<div class="vz-mon" style="color:#EF4444">'+fmt(d.monto)+'</div>'+
+      '<div class="vz-oido">Escuché: "'+d.texto+'"</div>';
+    hablar='Gasto '+d.desc+', '+d.monto.toLocaleString('es-CO')+' pesos. ¿Confirmo?';
+  } else {
+    h='<div class="vz-paso">Confirmar préstamo nuevo</div>'+
+      '<div class="vz-cli">'+d.nombre+'</div>'+
+      '<div class="vz-mon" style="color:#3B82F6">'+fmt(d.monto)+'</div>'+
+      '<div class="vz-oido">Escuché: "'+d.texto+'"</div>';
+    hablar='Préstamo nuevo para '+d.nombre+', '+d.monto.toLocaleString('es-CO')+' pesos. ¿Confirmo?';
+  }
+  // Si el monto quedo chico, ofrecer multiplicar por mil (dijo "veinte" por "veinte mil")
+  if(d.monto<1000){
+    h+='<button class="vz-x1000" onclick="vzPorMil()">¿Quiso decir '+fmt(d.monto*1000)+'? Tocar para cambiar</button>';
+  }
+  h+='<div class="vz-fp">'+
+      '<button class="'+(fp==='efectivo'?'on':'')+'" onclick="vzForma(\'efectivo\')">Efectivo</button>'+
+      '<button class="'+(fp==='nequi'?'on':'')+'" onclick="vzForma(\'nequi\')">Nequi</button>'+
+      '<button class="'+(fp==='transferencia'?'on':'')+'" onclick="vzForma(\'transferencia\')">Transf</button>'+
+     '</div>'+
+     '<div class="vz-btns">'+
+       '<button class="vz-si" onclick="vzGuardar()">✓ SÍ, GUARDAR</button>'+
+       '<button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button>'+
+       '<button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button>'+
+     '</div>';
+  ovMostrar(h);
+  decir(hablar);
+}
+function vzForma(f){if(!_vozDato)return;_vozDato.forma=f;ovConfirmar();}
+function vzPorMil(){if(!_vozDato)return;_vozDato.monto=_vozDato.monto*1000;ovConfirmar();}
+
+function vzGuardar(){
+  var d=_vozDato;
+  if(!d||!d.monto)return ovCerrar();
+  var fp=d.forma||'efectivo';
+  var msg='';
+  if(d.tipo==='pago'){
+    if(!d.cliente)return ovCerrar();
     PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
-    ge('mic-status').textContent='✓ Pago: '+d.cliente.nom+' '+fmt(d.monto)+' ('+fp+')';
+    msg='✓ Abono guardado: '+d.cliente.nom+' '+fmt(d.monto)+' ('+fp+')';
+    decir('Guardado. '+d.cliente.nom+'. Saldo '+Math.max(0,saldo(d.cliente)).toLocaleString('es-CO')+' pesos.');
   } else if(d.tipo==='gasto'){
     G.push({id:Date.now(),des:d.desc,mon:d.monto,fec:hoy(),cat:'General',fp:fp,not:'[voz]'});
-    ge('mic-status').textContent='✓ Gasto: '+d.desc+' '+fmt(d.monto);
-  } else if(d.tipo==='prestamo'){
+    msg='✓ Gasto guardado: '+d.desc+' '+fmt(d.monto);
+    decir('Gasto guardado.');
+  } else {
     P.push(nP({id:Date.now(),nom:d.nombre,mon:d.monto,int:0,fec:hoy(),fp:fp,est:'activo',not:'[voz]'}));
-    ge('mic-status').textContent='✓ Préstamo: '+d.nombre+' '+fmt(d.monto);
+    msg='✓ Préstamo guardado: '+d.nombre+' '+fmt(d.monto);
+    decir('Préstamo guardado.');
   }
   save();rAll();
-  ge('mic-resultado').style.display='none';
+  ge('VZ-OV').classList.remove('on');
   _vozDato=null;
-  setTimeout(function(){ge('mic-status').textContent='';},4000);
+  _flash(msg);
 }
-function cancelarVoz(){ge('mic-resultado').style.display='none';_vozDato=null;ge('mic-status').textContent='';}
+function confirmarVoz(){vzGuardar();}
+function cancelarVoz(){ovCerrar();}
 </script>
 </body>
 </html>
