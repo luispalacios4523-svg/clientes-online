@@ -76,6 +76,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .bdg.renovado{background:#F5F3FF;color:#8B5CF6;}
 .bdg.efectivo{background:#ECFDF5;color:#10B981;}
 .bdg.nequi{background:#FDF2F8;color:#EC4899;}
+.bdg.transferencia{background:#EEF2FF;color:#6366F1;}
 .pnl{border-radius:12px;padding:14px;margin-bottom:12px;display:none;}
 .pnl.on{display:block;}
 .pnl.ed{background:#EFF6FF;border:1.5px solid #BFDBFE;}
@@ -477,7 +478,7 @@ function rPre(){
     var saldoColor=s>0?'#EF4444':'#10B981';
     return '<div class="fm-row '+cls+'" id="card-'+p.id+'">'+
       '<div class="fm-nom ed-trigger" data-id="'+p.id+'">'+p.nom+
-        '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+(p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
+        '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+' <span class="bdg '+(p.fp||'efectivo')+'">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transf'))+'</span>'+(p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
       '</div>'+
       '<div class="fm-inp">'+
         '<input type="number" class="fm-pago-inp" data-id="'+p.id+'" placeholder="0" min="1"'+(s===0?' disabled':'')+'/>'+
