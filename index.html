@@ -115,6 +115,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .fm-row:hover{background:#F8FAFC;}
 .fm-nom{font-size:14px;font-weight:800;color:#1E3A8A;cursor:pointer;}
 .fm-sub{font-size:11px;color:#94A3B8;font-weight:400;margin-top:2px;}
+.fm-fec{color:#3B82F6;font-weight:700;}
 .fm-inp{display:flex;gap:3px;align-items:center;}
 .fm-pago-inp{width:72px;font-size:13px;padding:5px 6px;border:1.5px solid #3B82F6;border-radius:6px;font-family:Arial,sans-serif;text-align:right;outline:none;}
 .fm-pago-inp:focus{border-color:#1D4ED8;box-shadow:0 0 0 2px rgba(59,130,246,.2);}
@@ -476,7 +477,7 @@ function rPre(){
     var saldoColor=s>0?'#EF4444':'#10B981';
     return '<div class="fm-row '+cls+'" id="card-'+p.id+'">'+
       '<div class="fm-nom ed-trigger" data-id="'+p.id+'">'+p.nom+
-        (p.dir||p.tel?'<div class="fm-sub">'+(p.dir?p.dir+' ':'')+(p.tel?'· '+p.tel:'')+'</div>':'')+
+        '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+(p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
       '</div>'+
       '<div class="fm-inp">'+
         '<input type="number" class="fm-pago-inp" data-id="'+p.id+'" placeholder="0" min="1"'+(s===0?' disabled':'')+'/>'+
