@@ -164,6 +164,9 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .vz-fp button{flex:1;background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:13px 4px;font-family:Arial,sans-serif;}
 .vz-fp button.on{background:#3B82F6;color:#fff;border-color:#3B82F6;}
 .vz-mic-big{background:#3B82F6;color:#fff;border:none;border-radius:14px;padding:17px 22px;font-size:16px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;}
+.hf-btn{background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;margin-top:8px;}
+.hf-btn.on{background:#10B981;color:#fff;border-color:#10B981;animation:hfpulso 2s infinite;}
+@keyframes hfpulso{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5);}50%{box-shadow:0 0 0 9px rgba(16,185,129,0);}}
 </style>
 </head>
 <body>
@@ -192,8 +195,9 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 </div>
 <div class="sec active" id="S-res">
   <div style="height:12px"></div>
-  <button class="vz-mic-big" onclick="iniciarVoz()" style="margin-bottom:6px">🎤 Registrar por voz</button>
-  <div id="mic-status-res" style="font-size:13px;color:#10B981;font-weight:700;margin-bottom:12px;text-align:center"></div>
+  <button class="vz-mic-big" onclick="iniciarVoz()">🎤 Registrar por voz</button>
+  <button class="hf-btn" id="HF-BTN-res" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
+  <div id="mic-status-res" style="font-size:13px;color:#10B981;font-weight:700;margin:10px 0 12px;text-align:center"></div>
   <div class="cap"><label>Capital inicial</label><input type="number" id="x-CI" placeholder="0"><div class="note">Caja = Capital + Cobrado efectivo - Entregado efectivo - Gastos efectivo</div></div>
   <div class="mets" id="MC"></div>
   <div style="background:#1E3A8A;border-radius:8px;padding:12px 18px;margin:8px 0;display:inline-block">
@@ -264,6 +268,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
     <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón ✓ para guardar pago</p>
     <div style="margin-bottom:12px">
       <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Registrar por voz</button>
+      <button class="hf-btn" id="HF-BTN-pre" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
       <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
       <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
         Diga: <b>"abono Patricia veinte mil"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
@@ -669,11 +674,20 @@ function decir(txt){
     speechSynthesis.cancel();
     var u=new SpeechSynthesisUtterance(txt);
     u.lang='es-CO';u.rate=1.05;u.volume=1;
+    // Mientras la app habla, ignora lo que oye (para no escucharse a si misma)
+    u.onstart=function(){_hablando=true;};
+    u.onend=function(){setTimeout(function(){_hablando=false;},250);};
+    u.onerror=function(){_hablando=false;};
     speechSynthesis.speak(u);
-  }catch(e){}
+  }catch(e){_hablando=false;}
 }
 function ovMostrar(html){ge('VZ-CARD').innerHTML=html;ge('VZ-OV').classList.add('on');}
-function ovCerrar(){ge('VZ-OV').classList.remove('on');_vozDato=null;try{speechSynthesis.cancel();}catch(e){}}
+function ovCerrar(){
+  ge('VZ-OV').classList.remove('on');_vozDato=null;_vzCands=[];
+  try{speechSynthesis.cancel();}catch(e){}
+  _hablando=false;
+  if(HF)hfArrancar();
+}
 function _flash(msg){
   ['mic-status','mic-status-res'].forEach(function(id){
     var st=ge(id);
@@ -681,9 +695,90 @@ function _flash(msg){
   });
 }
 
+// ══ MODO MANOS LIBRES ══
+// La app escucha todo el tiempo pero solo actua cuando oye una palabra clave.
+var HF=false,_recHF=null,_hablando=false,_vzCands=[],_hfReinicio=null;
+var CLAVES=['abono','abona','abonar','pago','pague','pagó','pago de','gasto','gasté','gaste','prestamo','préstamo'];
+function tieneClave(t){
+  var n=norm(t);
+  for(var i=0;i<CLAVES.length;i++){
+    var c=norm(CLAVES[i]);
+    if(n===c||n.indexOf(c+' ')===0||n.indexOf(' '+c+' ')>=0)return true;
+  }
+  return false;
+}
+function hfPintar(){
+  ['HF-BTN-res','HF-BTN-pre'].forEach(function(id){
+    var b=ge(id);if(!b)return;
+    b.textContent=HF?'👂 Manos libres: ESCUCHANDO':'👂 Manos libres: APAGADO';
+    if(HF)b.classList.add('on');else b.classList.remove('on');
+  });
+}
+function toggleHF(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Su navegador no soporta voz. Use Chrome en Android o PC.');return;}
+  HF=!HF;hfPintar();
+  if(HF){hfArrancar();_flash('Manos libres activo. Diga "abono" y el nombre.');decir('Manos libres activo');}
+  else{hfParar();_flash('Manos libres apagado.');}
+}
+function hfParar(){
+  if(_hfReinicio){clearTimeout(_hfReinicio);_hfReinicio=null;}
+  if(_recHF){try{_recHF.onend=null;_recHF.stop();}catch(e){}_recHF=null;}
+}
+function hfArrancar(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR||!HF)return;
+  hfParar();
+  var r=new SR();
+  r.lang='es-CO';r.continuous=true;r.interimResults=false;r.maxAlternatives=3;
+  r.onresult=function(e){
+    if(_hablando)return;
+    var i=e.resultIndex;
+    var alts=[];
+    for(var k=0;k<e.results[i].length;k++)alts.push(e.results[i][k].transcript);
+    hfOir(alts);
+  };
+  r.onerror=function(ev){
+    if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){
+      HF=false;hfPintar();_flash('Permiso de micrófono denegado.');return;
+    }
+  };
+  r.onend=function(){
+    if(HF)_hfReinicio=setTimeout(hfArrancar,350);
+  };
+  _recHF=r;
+  try{r.start();}catch(e){}
+}
+// Que hacer con lo que se escucho en modo manos libres
+function hfOir(alts){
+  var t=alts[0];
+  var abierto=ge('VZ-OV').classList.contains('on');
+  if(abierto){
+    var n=norm(t);
+    // Elegir cliente por numero cuando hay varios parecidos
+    if(_vzCands.length){
+      var num={'uno':1,'una':1,'1':1,'dos':2,'2':2,'tres':3,'3':3,'cuatro':4,'4':4};
+      var pal=n.split(' ');
+      for(var i=0;i<pal.length;i++){
+        if(num[pal[i]]&&_vzCands[num[pal[i]]-1]){vzElegido(_vzCands[num[pal[i]]-1].p.id);return;}
+      }
+    }
+    if(/\b(si|sí|confirmo|confirmar|correcto|guardar|guarda|listo|dale)\b/.test(n)){vzGuardar();return;}
+    if(/\b(no|cancela|cancelar|borra|nada)\b/.test(n)){ovCerrar();return;}
+    if(/\b(repetir|repite|otra vez|de nuevo)\b/.test(n)){ovCerrar();return;}
+    return;
+  }
+  // Sin overlay abierto: solo reacciona si oye una palabra clave
+  var conClave=null;
+  for(var j=0;j<alts.length;j++){if(tieneClave(alts[j])){conClave=alts;break;}}
+  if(!conClave)return;
+  procesarVoz(alts);
+}
+
 function iniciarVoz(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){alert('Su navegador no soporta voz. Use Chrome.');return;}
+  if(HF){hfParar();}
   ovMostrar('<div class="vz-paso">Escuchando…</div>'+
     '<div class="vz-esc">🎤</div>'+
     '<div style="font-size:16px;color:#64748B;margin-bottom:20px;line-height:1.5">Diga el <b>nombre</b> y el <b>monto</b><br><span style="font-size:13px">ej: "abono Patricia veinte mil"</span></div>'+
@@ -771,7 +866,8 @@ function ovElegir(cands,monto,texto){
     }).join('')+
     '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
   ovMostrar(h);
-  decir('Encontré varios parecidos. ¿Cuál es?');
+  _vzCands=cands;
+  decir(HF?'Encontré varios parecidos. Diga el número.':'Encontré varios parecidos. ¿Cuál es?');
 }
 function vzElegido(id){
   var p=P.find(function(x){return x.id===id;});
@@ -813,6 +909,7 @@ function ovConfirmar(){
   if(d.monto<1000){
     h+='<button class="vz-x1000" onclick="vzPorMil()">¿Quiso decir '+fmt(d.monto*1000)+'? Tocar para cambiar</button>';
   }
+  if(HF)h+='<div style="font-size:12px;color:#10B981;font-weight:700;margin-bottom:10px">👂 Diga <b>"SÍ"</b> para guardar o <b>"NO"</b> para cancelar</div>';
   h+='<div class="vz-fp">'+
       '<button class="'+(fp==='efectivo'?'on':'')+'" onclick="vzForma(\'efectivo\')">Efectivo</button>'+
       '<button class="'+(fp==='nequi'?'on':'')+'" onclick="vzForma(\'nequi\')">Nequi</button>'+
@@ -850,8 +947,9 @@ function vzGuardar(){
   }
   save();rAll();
   ge('VZ-OV').classList.remove('on');
-  _vozDato=null;
+  _vozDato=null;_vzCands=[];
   _flash(msg);
+  if(HF)hfArrancar();
 }
 function confirmarVoz(){vzGuardar();}
 function cancelarVoz(){ovCerrar();}
