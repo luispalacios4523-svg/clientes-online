@@ -182,7 +182,19 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
   <div class="card">
     <div class="thr"><div class="ct" style="margin:0">Lista de clientes</div><div style="display:flex;gap:6px;"><button class="bsr" id="B-SP">Buscar</button><button class="bg" id="B-LP" style="display:none;font-size:11px">x Todos</button></div></div>
     <div class="pnl sr" id="PNL-SP"><div class="pt">Buscar cliente</div>
-      <div class="fr"><div class="fg"><label>Nombre</label><input type="text" id="sp-nom" placeholder="Nombre..."></div><div class="fg"><label>Cedula</label><input type="text" id="sp-ced" placeholder="Cedula..."></div><div class="fg"><label>Fecha</label><input type="date" id="sp-fec"></div></div>
+      <div class="fr">
+        <div class="fg"><label>Nombre</label><input type="text" id="sp-nom" placeholder="Nombre..."></div>
+        <div class="fg"><label>Cedula</label><input type="text" id="sp-ced" placeholder="Cedula..."></div>
+        <div class="fg"><label>Desde</label><input type="date" id="sp-fec1"></div>
+        <div class="fg"><label>Hasta</label><input type="date" id="sp-fec2"></div>
+        <div class="fg s2"><label>Forma de entrega</label><select id="sp-fp"><option value="">Todas las formas</option><option value="efectivo">Efectivo</option><option value="nequi">Nequi</option></select></div>
+      </div>
+      <div class="pa" style="margin-bottom:8px">
+        <button class="bg" onclick="rangoRapidoPre('hoy')" style="font-size:11px;padding:7px 11px">Hoy</button>
+        <button class="bg" onclick="rangoRapidoPre('semana')" style="font-size:11px;padding:7px 11px">Últimos 7 días</button>
+        <button class="bg" onclick="rangoRapidoPre('mes')" style="font-size:11px;padding:7px 11px">Este mes</button>
+        <button class="bg" onclick="rangoRapidoPre('mesant')" style="font-size:11px;padding:7px 11px">Mes anterior</button>
+      </div>
       <div class="pa"><button class="bsr" id="B-APS">Buscar</button><button class="bg" id="B-CPS">Cancelar</button></div>
     </div>
     <div class="rb" id="RES-P"></div>
@@ -407,7 +419,17 @@ ge('B-CE').onclick=function(){EID=null;ge('PNL-EP').classList.remove('on');rPre(
 ge('B-CR').onclick=function(){var p=P.find(function(x){return x.id===RID;});if(!p)return;var m=parseFloat(vl('r-mon')),f=vl('r-fec');if(!m||!f)return alert('Completa valor y fecha.');p.est='renovado';P.push(nP({id:Date.now(),nom:p.nom,ced:p.ced,tel:p.tel,dir:p.dir,mon:m,int:parseFloat(vl('r-int'))||0,fec:f,fp:vl('r-fp'),not:vl('r-not').trim(),est:'activo'}));RID=null;ge('PNL-RN').classList.remove('on');save();rPre();uDS();rRes();alert('Cliente renovado.');};
 ge('B-XR').onclick=function(){RID=null;ge('PNL-RN').classList.remove('on');};
 ge('B-SP').onclick=function(){ge('PNL-SP').classList.toggle('on');};
-ge('B-APS').onclick=function(){var n=vl('sp-nom').trim().toLowerCase(),c=vl('sp-ced').trim(),f=vl('sp-fec');FP.p=function(x){if(n&&!x.nom.toLowerCase().includes(n))return false;if(c&&!(x.ced||'').includes(c))return false;if(f&&x.fec!==f)return false;return true;};ge('PNL-SP').classList.remove('on');ge('B-SP').classList.add('on');ge('B-LP').style.display='inline-block';rPre();};
+function rangoRapidoPre(tipo){
+  var d=new Date(),y=d.getFullYear(),m=d.getMonth();
+  function f(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+  var d1,d2;
+  if(tipo==='hoy'){d1=d2=d;}
+  else if(tipo==='semana'){d2=d;d1=new Date(y,m,d.getDate()-6);}
+  else if(tipo==='mes'){d1=new Date(y,m,1);d2=new Date(y,m+1,0);}
+  else if(tipo==='mesant'){d1=new Date(y,m-1,1);d2=new Date(y,m,0);}
+  ge('sp-fec1').value=f(d1);ge('sp-fec2').value=f(d2);
+}
+ge('B-APS').onclick=function(){var n=vl('sp-nom').trim().toLowerCase(),c=vl('sp-ced').trim(),f1=vl('sp-fec1'),f2=vl('sp-fec2'),fp=vl('sp-fp');FP.p=function(x){if(n&&!x.nom.toLowerCase().includes(n))return false;if(c&&!(x.ced||'').includes(c))return false;if(f1&&x.fec<f1)return false;if(f2&&x.fec>f2)return false;if(fp&&(x.fp||'efectivo')!==fp)return false;return true;};ge('PNL-SP').classList.remove('on');ge('B-SP').classList.add('on');ge('B-LP').style.display='inline-block';rPre();};
 ge('B-CPS').onclick=function(){ge('PNL-SP').classList.remove('on');};
 ge('B-LP').onclick=function(){FP.p=null;ge('B-SP').classList.remove('on');ge('B-LP').style.display='none';ge('RES-P').style.display='none';rPre();};
 ge('pg-fp').onchange=function(){var fp=this.value;if(!fp)return;var did=parseInt(vl('pg-cli')),m=parseFloat(vl('pg-mon')),f=vl('pg-fec');if(!did)return alert('Selecciona un cliente primero.');if(!m)return alert('Ingresa el monto primero.');if(!f)return alert('Ingresa la fecha primero.');var p=P.find(function(x){return x.id===did;});if(!p)return;PG.push(nPG({id:Date.now(),did:did,nom:p.nom,mon:m,fec:f,est:vl('pg-est'),fp:fp,not:vl('pg-not').trim()}));ge('pg-mon').value='';ge('pg-not').value='';ge('pg-fp').value='';var ok=ge('ok-pago');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2500);save();rPag();rRes();};
@@ -443,7 +465,7 @@ ge('B-TODOS').onclick=function(){rRep(true);};
 function rPre(){
   var lst=FP.p?P.filter(FP.p):P;
   var r=ge('RES-P');
-  if(FP.p){r.style.display='inline-block';r.textContent=lst.length+' resultado(s)';}else r.style.display='none';
+  if(FP.p){r.style.display='inline-block';var tEnt=lst.reduce(function(s,p){return s+p.mon;},0);var tSal=lst.reduce(function(s,p){return s+saldo(p);},0);r.innerHTML=lst.length+' resultado(s) &nbsp;·&nbsp; Entregado: <b>'+fmt(tEnt)+'</b> &nbsp;·&nbsp; Saldo pendiente: <b>'+fmt(tSal)+'</b>';}else r.style.display='none';
   var ct=ge('LIST-pre');
   if(!lst.length){ct.innerHTML='<div class="em">Sin clientes registrados</div>';return;}
   ct.innerHTML='<div class="fm-hdr"><span>Cliente</span><span>Pago $</span><span>Total</span><span>Saldo</span><span></span></div>'+
