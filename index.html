@@ -467,7 +467,7 @@ ge('B-TODOS').onclick=function(){rRep(true);};
 function rPre(){
   var lst=FP.p?P.filter(FP.p):P;
   var r=ge('RES-P');
-  if(FP.p){r.style.display='inline-block';var tEnt=lst.reduce(function(s,p){return s+p.mon;},0);var tSal=lst.reduce(function(s,p){return s+saldo(p);},0);r.innerHTML=lst.length+' resultado(s) &nbsp;·&nbsp; Entregado: <b>'+fmt(tEnt)+'</b> &nbsp;·&nbsp; Saldo pendiente: <b>'+fmt(tSal)+'</b>';}else r.style.display='none';
+  if(FP.p){r.style.display='block';var tEnt=lst.reduce(function(s,p){return s+p.mon;},0);var tInt=lst.reduce(function(s,p){return s+p.mon*p.int/100;},0);var tSal=lst.reduce(function(s,p){return s+saldo(p);},0);r.innerHTML='<b>'+lst.length+'</b> resultado(s)<br>Total prestamos: <b>'+fmt(tEnt)+'</b> &nbsp;·&nbsp; Total intereses: <b style="color:#8B5CF6">'+fmt(tInt)+'</b><br>Total a cobrar: <b style="color:#F59E0B">'+fmt(tEnt+tInt)+'</b> &nbsp;·&nbsp; Saldo pendiente: <b style="color:#EF4444">'+fmt(tSal)+'</b>';}else r.style.display='none';
   var ct=ge('LIST-pre');
   if(!lst.length){ct.innerHTML='<div class="em">Sin clientes registrados</div>';return;}
   ct.innerHTML='<div class="fm-hdr"><span>Cliente</span><span>Pago $</span><span>Total</span><span>Saldo</span><span></span></div>'+
