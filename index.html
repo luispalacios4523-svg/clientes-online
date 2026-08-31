@@ -836,14 +836,19 @@ function procesarVoz(alts){
   });
   cands.sort(function(a,b){return b.score-a.score;});
   if(!cands.length)return ovError('No encontré ese cliente.',texto);
-  // Si el segundo candidato está muy cerca del primero, preguntar cuál es
-  var dudoso=cands.length>1&&(cands[0].score-cands[1].score)<0.35;
-  if(dudoso){
-    _vozDato={tipo:'pago',monto:monto,forma:forma,texto:texto};
-    return ovElegir(cands.slice(0,4),monto,texto);
+  // Solo interesan los prestamos que todavia tienen saldo: los ya cancelados se ignoran
+  var conSaldo=cands.filter(function(c){return saldo(c.p)>0;});
+  if(!conSaldo.length){
+    var nom=cands[0].p.nom;
+    return ovError(nom+' no tiene saldo pendiente.',texto);
   }
-  _vozDato={tipo:'pago',cliente:cands[0].p,monto:monto,forma:forma,texto:texto};
-  ovConfirmar();
+  if(conSaldo.length===1){
+    _vozDato={tipo:'pago',cliente:conSaldo[0].p,monto:monto,forma:forma,texto:texto};
+    return ovConfirmar();
+  }
+  // Varios prestamos activos con nombre parecido: preguntar cual
+  _vozDato={tipo:'pago',monto:monto,forma:forma,texto:texto};
+  ovElegir(conSaldo.slice(0,4),monto,texto);
 }
 
 function ovError(msg,texto){
@@ -862,7 +867,7 @@ function ovElegir(cands,monto,texto){
       var s=saldo(c.p);
       return '<button class="vz-cand" onclick="vzElegido('+c.p.id+')">'+
         '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
-        '<div class="d">Saldo: '+fmt(s)+(c.p.dir?' · '+c.p.dir:'')+'</div></button>';
+        '<div class="d">Saldo: <b style="color:#EF4444">'+fmt(s)+'</b>'+(c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div></button>';
     }).join('')+
     '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
   ovMostrar(h);
