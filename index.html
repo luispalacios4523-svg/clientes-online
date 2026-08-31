@@ -163,6 +163,18 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .vz-fp{display:flex;gap:7px;margin-bottom:14px;}
 .vz-fp button{flex:1;background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:13px 4px;font-family:Arial,sans-serif;}
 .vz-fp button.on{background:#3B82F6;color:#fff;border-color:#3B82F6;}
+/* Filas para abonar a varias cuentas del mismo nombre */
+.em-fila{background:#F8FAFC;border:2px solid #E2E8F0;border-radius:12px;padding:12px;margin-bottom:9px;text-align:left;}
+.em-fila.listo{background:#ECFDF5;border-color:#10B981;}
+.em-cab{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.em-nom{font-size:17px;font-weight:800;color:#1E3A8A;}
+.em-dat{font-size:12px;color:#64748B;margin-bottom:10px;}
+.em-acc{display:flex;gap:7px;}
+.em-inp{flex:1;min-width:0;font-family:Arial,sans-serif;font-size:18px;font-weight:800;padding:12px;border:2px solid #3B82F6;border-radius:10px;text-align:right;outline:none;background:#fff;color:#1E293B;}
+.em-inp:focus{border-color:#1D4ED8;}
+.em-btn{background:#10B981;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;padding:12px 16px;font-family:Arial,sans-serif;white-space:nowrap;}
+.em-btn:hover{background:#059669;}
+.em-ok{font-size:15px;font-weight:800;color:#10B981;padding:6px 0;}
 .vz-mic-big{background:#3B82F6;color:#fff;border:none;border-radius:14px;padding:17px 22px;font-size:16px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;}
 /* Campos editables dentro de la confirmacion */
 .vz-campo{margin-bottom:12px;text-align:left;}
@@ -779,7 +791,7 @@ function decir(txt){
 }
 function ovMostrar(html){ge('VZ-CARD').innerHTML=html;ge('VZ-OV').classList.add('on');}
 function ovCerrar(){
-  ge('VZ-OV').classList.remove('on');_vozDato=null;_vzCands=[];
+  ge('VZ-OV').classList.remove('on');_vozDato=null;_vzCands=[];_emCands=[];_emHechos={};
   try{speechSynthesis.cancel();}catch(e){}
   _hablando=false;
   if(HF)hfArrancar();
@@ -1050,20 +1062,63 @@ function ovError(msg,texto){
   decir(msg);
 }
 
+// Varias cuentas con nombre parecido: se pueden abonar TODAS aqui mismo,
+// cada una con su propio monto, sin repetir el comando de voz.
+var _emCands=[],_emHechos={};
 function ovElegir(cands,monto,texto){
-  var h='<div class="vz-paso">¿Cuál cliente?</div>'+
-    '<div class="vz-mon">'+fmt(monto)+'</div>'+
-    '<div class="vz-oido">Escuché: "'+texto+'"</div>'+
-    cands.map(function(c,i){
-      var s=saldo(c.p);
-      return '<button class="vz-cand" onclick="vzElegido('+c.p.id+')">'+
-        '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
-        '<div class="d">Saldo: <b style="color:#EF4444">'+fmt(s)+'</b>'+(c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div></button>';
-    }).join('')+
-    '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
-  ovMostrar(h);
+  _emCands=cands;_emHechos={};
   _vzCands=cands;_vzModo='pago';
-  decir(HF?'Encontré varios parecidos. Diga el número.':'Encontré varios parecidos. ¿Cuál es?');
+  emPintar(monto,texto);
+  decir(HF?'Encontré varias cuentas. Diga el número o escriba el monto de cada una.':'Encontré varias cuentas. Escriba el monto de cada una.');
+}
+function emPintar(monto,texto){
+  var fp=(_vozDato&&_vozDato.forma)||'efectivo';
+  var h='<div class="vz-paso">'+_emCands.length+' cuentas con ese nombre</div>'+
+    '<div style="font-size:15px;color:#64748B;margin-bottom:4px">Escuché</div>'+
+    '<div class="vz-mon" style="font-size:38px">'+fmt(monto)+'</div>'+
+    '<div class="vz-oido">"'+String(texto).replace(/"/g,'&quot;')+'"</div>'+
+    '<div style="font-size:13px;color:#8B5CF6;font-weight:700;margin-bottom:12px;line-height:1.5">Puede abonar a varias: ajuste el monto y toque ✓ en cada una.</div>'+
+    '<div class="vz-fp">'+
+      '<button class="'+(fp==='efectivo'?'on':'')+'" onclick="emForma(\'efectivo\','+monto+',\''+String(texto).replace(/'/g,"\\'")+'\')">Efectivo</button>'+
+      '<button class="'+(fp==='nequi'?'on':'')+'" onclick="emForma(\'nequi\','+monto+',\''+String(texto).replace(/'/g,"\\'")+'\')">Nequi</button>'+
+      '<button class="'+(fp==='transferencia'?'on':'')+'" onclick="emForma(\'transferencia\','+monto+',\''+String(texto).replace(/'/g,"\\'")+'\')">Transf</button>'+
+    '</div>';
+  h+=_emCands.map(function(c,i){
+    var s=saldo(c.p),hecho=_emHechos[c.p.id];
+    return '<div class="em-fila'+(hecho?' listo':'')+'">'+
+      '<div class="em-cab"><span class="num">'+(i+1)+'</span><span class="em-nom">'+c.p.nom+'</span></div>'+
+      '<div class="em-dat">Saldo: <b style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</b>'+(c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div>'+
+      (hecho
+        ? '<div class="em-ok">✓ Abonado '+fmt(hecho)+'</div>'
+        : '<div class="em-acc"><input type="number" class="em-inp" id="EM-'+c.p.id+'" value="'+monto+'" min="1"><button class="em-btn" onclick="emAbonar('+c.p.id+','+monto+',\''+String(texto).replace(/'/g,"\\'")+'\')">✓ Abonar</button></div>')+
+    '</div>';
+  }).join('');
+  var n=0;for(var k in _emHechos)n++;
+  h+='<div class="vz-btns" style="margin-top:14px">'+
+      (n?'<button class="vz-si" onclick="ovCerrar()">✓ TERMINAR ('+n+' abono'+(n>1?'s':'')+')</button>':'')+
+      '<button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button>'+
+      '<button class="vz-no" onclick="ovCerrar()">✕ '+(n?'Cerrar':'Cancelar')+'</button>'+
+    '</div>';
+  ovMostrar(h);
+}
+function emForma(f,monto,texto){
+  if(_vozDato)_vozDato.forma=f;
+  emPintar(monto,texto);
+}
+function emAbonar(id,monto,texto){
+  var inp=ge('EM-'+id);
+  var m=parseFloat(inp?inp.value:0);
+  if(!m||m<=0)return alert('Ingrese un monto mayor a 0.');
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return;
+  var s=saldo(p);
+  if(m>s&&!confirm('El abono ('+fmt(m)+') es mayor que el saldo de '+p.nom+' ('+fmt(s)+').\n\n¿Registrar de todos modos?'))return;
+  var fp=(_vozDato&&_vozDato.forma)||'efectivo';
+  PG.push({id:Date.now(),did:id,nom:p.nom,mon:m,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
+  _emHechos[id]=m;
+  save();rAll();
+  emPintar(monto,texto);
+  decir(p.nom+', '+m.toLocaleString('es-CO')+' pesos. Guardado.');
 }
 function vzElegido(id){
   var p=P.find(function(x){return x.id===id;});
