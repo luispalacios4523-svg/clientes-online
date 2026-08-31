@@ -117,17 +117,81 @@ def load():
     passwd = db_get('ap_pass')
     return jsonify({'data': data, 'pass': passwd})
 
+def _cuenta(d):
+    """Cuantos registros trae un paquete de datos."""
+    if not isinstance(d, dict):
+        return {'P': 0, 'PG': 0, 'G': 0}
+    return {k: len(d.get(k) or []) for k in ('P', 'PG', 'G')}
+
+
+def _snapshot(data):
+    """Guarda una copia con fecha y mantiene las ultimas 30."""
+    from datetime import datetime, timezone
+    sello = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H-%M-%S')
+    db_set('snap_' + sello, data)
+    idx = db_get('snap_index', []) or []
+    idx.append(sello)
+    for viejo in idx[:-30]:
+        try:
+            db_set('snap_' + viejo, None)
+        except Exception:
+            pass
+    db_set('snap_index', idx[-30:])
+
+
 @app.route('/api/save', methods=['POST'])
 def save():
     body = request.json
-    if not body: return jsonify({'ok': False}), 400
+    if not body:
+        return jsonify({'ok': False}), 400
+
     if 'data' in body:
-        db_set('ap_all_v2', body['data'])
+        nuevo = body['data']
+        actual = db_get('ap_all_v2')
+        n, a = _cuenta(nuevo), _cuenta(actual)
+
+        # Proteccion contra borrado masivo: si el navegador manda menos
+        # registros de los que ya hay guardados, se rechaza. Antes esto
+        # borraba meses de pagos cuando la carga inicial fallaba.
+        if actual and not body.get('forzar'):
+            for k in ('P', 'PG', 'G'):
+                if a[k] > 0 and n[k] < a[k]:
+                    return jsonify({
+                        'ok': False,
+                        'motivo': 'menos_registros',
+                        'detalle': 'Recibidos %s de %s en %s' % (n[k], a[k], k),
+                        'actual': a, 'recibido': n
+                    }), 409
+
+        _snapshot(nuevo)
+        db_set('ap_all_v2', nuevo)
+
     if 'pass' in body:
         db_set('ap_pass', body['pass'])
     if 'efectivo_actual' in body:
         db_set('efectivo_actual', body['efectivo_actual'])
     return jsonify({'ok': True})
+
+
+@app.route('/api/snapshots')
+def snapshots():
+    """Lista las copias automaticas guardadas en el servidor."""
+    idx = db_get('snap_index', []) or []
+    salida = []
+    for sello in reversed(idx):
+        d = db_get('snap_' + sello)
+        if d:
+            salida.append({'sello': sello, 'conteo': _cuenta(d)})
+    r = jsonify({'snapshots': salida})
+    return _cors(r)
+
+
+@app.route('/api/snapshot/<sello>')
+def snapshot_uno(sello):
+    d = db_get('snap_' + sello)
+    if not d:
+        return jsonify({'ok': False, 'motivo': 'no_existe'}), 404
+    return jsonify({'data': d, 'conteo': _cuenta(d)})
 
 
 try:

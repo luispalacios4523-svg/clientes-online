@@ -203,6 +203,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 <div id="main-app" style="display:none;">
 <div class="app">
 <div class="hdr"><h1>👥 Clientes</h1><div class="hdr-right"><div class="dot" id="sv"></div><span class="user-badge" id="user-badge"></span><button class="logout-btn" id="B-LOGOUT">Salir</button></div></div>
+<div id="BANNER-ERR" style="display:none;background:#FEF2F2;border:2px solid #FECACA;color:#EF4444;font-size:13px;font-weight:700;padding:12px 14px;margin:10px 14px 0;border-radius:10px;line-height:1.5;"></div>
 <div class="tabs" id="TC">
   <button class="tab active" data-t="res">Resumen</button>
   <button class="tab" data-t="pre">Clientes</button>
@@ -448,9 +449,52 @@ function nP(x){return{id:x.id||Date.now(),nom:x.nom||x.nombre||'',ced:x.ced||x.c
 function nPG(x){return{id:x.id||Date.now(),did:x.did||x.deudorId||0,nom:x.nom||x.nombre||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',est:x.est||x.estado||'pagado',fp:x.fp||x.forma||'efectivo',not:x.not||x.nota||''};}
 function nG(x){return{id:x.id||Date.now(),des:x.des||x.desc||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',cat:x.cat||'',fp:x.fp||'efectivo',not:x.not||x.nota||''};}
 function showSave(){var e=ge('sv');if(e){e.classList.add('on');setTimeout(function(){e.classList.remove('on');},2000);}}
-var _datosListos=false;
-function save(){if(!_datosListos)return;try{var data={P:P,PG:PG,G:G,CI:CI};fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:data})});showSave();}catch(e){}}
-function load(){fetch('/api/load').then(function(r){return r.json();}).then(function(res){if(res.pass)_passCache=res.pass;var d=res.data;if(d){if(d.P&&d.P.length)P=d.P.map(nP);if(d.PG&&d.PG.length)PG=d.PG.map(nPG);if(d.G&&d.G.length)G=d.G.map(nG);if(d.CI!=null){CI=parseFloat(d.CI)||0;var ci=ge('x-CI');if(ci)ci.value=CI;}}_datosListos=true;rAll();}).catch(function(){_datosListos=true;rAll();});}
+// _cargaOk solo es true si el servidor respondio de verdad.
+// Mientras sea false NO se guarda nada: asi una carga fallida nunca
+// puede sobrescribir los datos buenos del servidor con listas vacias.
+var _datosListos=false,_cargaOk=false,_intentos=0;
+function save(){
+  if(!_datosListos||!_cargaOk){avisoSinCarga();return;}
+  try{var data={P:P,PG:PG,G:G,CI:CI};fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:data})});showSave();}catch(e){}
+}
+function avisoSinCarga(){
+  var b=ge('BANNER-ERR');
+  if(b){b.style.display='block';b.textContent='⚠️ No hay conexión con el servidor. NO registre pagos: no se están guardando. Recargue la página.';}
+}
+function bannerEstado(txt,color){
+  var b=ge('BANNER-ERR');
+  if(!b)return;
+  if(!txt){b.style.display='none';return;}
+  b.style.display='block';b.textContent=txt;
+  b.style.background=color==='amarillo'?'#FFFBEB':'#FEF2F2';
+  b.style.borderColor=color==='amarillo'?'#F59E0B':'#FECACA';
+  b.style.color=color==='amarillo'?'#92400E':'#EF4444';
+}
+function load(){
+  _intentos++;
+  if(_intentos>1)bannerEstado('Conectando con el servidor… (intento '+_intentos+' de 5). El servidor puede tardar hasta un minuto en despertar.','amarillo');
+  fetch('/api/load',{cache:'no-store'})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(res){
+      if(res.pass)_passCache=res.pass;
+      var d=res.data;
+      if(d){
+        if(d.P&&d.P.length)P=d.P.map(nP);
+        if(d.PG&&d.PG.length)PG=d.PG.map(nPG);
+        if(d.G&&d.G.length)G=d.G.map(nG);
+        if(d.CI!=null){CI=parseFloat(d.CI)||0;var ci=ge('x-CI');if(ci)ci.value=CI;}
+      }
+      _cargaOk=true;_datosListos=true;_intentos=0;
+      bannerEstado('',null);
+      rAll();
+    })
+    .catch(function(){
+      // Reintentar: en el plan gratis el servidor tarda en despertar
+      if(_intentos<5){setTimeout(load,4000);return;}
+      _cargaOk=false;_datosListos=false;
+      bannerEstado('⚠️ No se pudieron cargar los datos del servidor. NO registre pagos: no se guardarían. Recargue la página cuando tenga señal.',null);
+    });
+}
 window.addEventListener('beforeunload',function(){var hoyStr=new Date().toISOString().slice(0,10);if(localStorage.getItem('cli_ultimo_backup')!==hoyStr&&P.length>0){var datos={P:P,PG:PG,G:G,CI:CI,fecha:new Date().toISOString(),version:2};var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(datos,null,2));a.download='clientes-backup-'+hoyStr+'.json';a.click();localStorage.setItem('cli_ultimo_backup',hoyStr);}});
 function saldo(p){return Math.max(0,p.mon*(1+p.int/100)-PG.filter(function(x){return x.did===p.id&&x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0));}
 function isAdmin(){return ROL==='admin';}
@@ -579,7 +623,11 @@ function uDS(){ge('pg-cli').innerHTML='<option value="">Seleccionar...</option>'
 function rRes(){var act=P.filter(function(p){return p.est!=='renovado';});var tp=act.reduce(function(s,p){return s+p.mon;},0);var tce=PG.filter(function(x){return x.est==='pagado'&&x.fp==='efectivo';}).reduce(function(s,x){return s+x.mon;},0);var tcn=PG.filter(function(x){return x.est==='pagado'&&x.fp==='nequi';}).reduce(function(s,x){return s+x.mon;},0);var tc=tce+tcn;var tge=G.filter(function(x){return (x.fp||'efectivo')==='efectivo';}).reduce(function(s,x){return s+x.mon;},0);var tg=G.reduce(function(s,x){return s+x.mon;},0);var tpe=act.filter(function(p){return (p.fp||'efectivo')==='efectivo';}).reduce(function(s,p){return s+p.mon;},0);var caja=CI+tce-tpe-tge;var tpn=act.filter(function(p){return p.fp==='nequi';}).reduce(function(s,p){return s+p.mon;},0);var tgn=G.filter(function(x){return x.fp==='nequi';}).reduce(function(s,x){return s+x.mon;},0);var nequiDisp=tcn-tpn-tgn;_actualizarTotalEfectivo(caja);ge('MC').innerHTML='<div class="met"><div class="l">Total entregado</div><div class="v" style="color:#3B82F6">'+fmt(tp)+'</div></div><div class="met"><div class="l">Cobrado efectivo</div><div class="v" style="color:#10B981">'+fmt(tce)+'</div></div><div class="met"><div class="l">Cobrado Nequi</div><div class="v" style="color:#EC4899">'+fmt(tcn)+'</div></div><div class="met"><div class="l">Prestado Nequi</div><div class="v" style="color:#8B5CF6">'+fmt(tpn)+'</div></div><div class="met"><div class="l">Total gastos</div><div class="v" style="color:#EF4444">'+fmt(tg)+'</div></div><div class="met"><div class="l">Saldo por cobrar</div><div class="v" style="color:#F59E0B">'+fmt(tp-tc)+'</div></div><div class="caja"><div><div class="l">Caja disponible (efectivo)</div><div class="v">'+fmt(caja)+'</div></div><div style="font-size:28px;opacity:.3">$</div></div><div class="nequi-box"><div><div class="l">Nequi disponible</div><div class="v">'+fmt(nequiDisp)+'</div><div class="n">Cobrado '+fmt(tcn)+' - Prestado '+fmt(tpn)+(tgn>0?' - Gastos '+fmt(tgn):'')+'</div></div><div style="font-size:28px;opacity:.3">📱</div></div>';var tb=ge('TB-res');if(!act.length){tb.innerHTML='<tr><td colspan="5" class="em">Sin clientes activos</td></tr>';return;}tb.innerHTML=act.map(function(p){var s=saldo(p);return '<tr><td style="font-weight:700">'+p.nom+'</td><td>'+fmt(p.mon)+'</td><td style="color:#10B981;font-weight:700">'+fmt(p.mon*(1+p.int/100)-s)+'</td><td style="font-weight:700;color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</td><td><span class="bdg '+(s===0?'saldado':'activo')+'">'+(s===0?'Saldado':'Activo')+'</span></td></tr>';}).join('');}
 function rAll(){rRes();rPre();rPag();rGas();uDS();uHC();rRep(false);}
 function _actualizarTotalEfectivo(caja){
-  fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{P:P,PG:PG,G:G,CI:CI},efectivo_actual:caja})});
+  // Solo publica el efectivo. NO vuelve a mandar los datos: antes lo hacia
+  // sin verificar la carga y era lo que borraba el servidor.
+  if(_datosListos&&_cargaOk){
+    fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({efectivo_actual:caja})});
+  }
   var _urls=['https://web-production-b8d23.up.railway.app/api/efectivo','https://bicicletas-electricas.onrender.com/api/efectivo'];
   Promise.all(_urls.map(function(u){return fetch(u).then(function(r){return r.json();}).catch(function(){return {efectivo:0};});}))
   .then(function(res){var tot=caja+res.reduce(function(s,r){return s+(r.efectivo||0);},0);var el=ge('total-efectivo-global');if(el)el.textContent='$'+Number(tot).toLocaleString('es-CO');});
