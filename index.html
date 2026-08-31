@@ -166,6 +166,25 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .vz-mic-big{background:#3B82F6;color:#fff;border:none;border-radius:14px;padding:17px 22px;font-size:16px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;}
 .hf-btn{background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;margin-top:8px;}
 .hf-btn.on{background:#10B981;color:#fff;border-color:#10B981;animation:hfpulso 2s infinite;}
+/* Asistente paso a paso */
+.pw-barra{display:flex;gap:4px;margin-bottom:16px;}
+.pw-barra span{flex:1;height:5px;border-radius:3px;background:#E2E8F0;}
+.pw-barra span.ok{background:#8B5CF6;}
+.pw-preg{font-size:22px;font-weight:800;color:#1E293B;margin-bottom:6px;}
+.pw-ayuda{font-size:12px;color:#94A3B8;margin-bottom:16px;}
+.pw-inp{width:100%;font-family:Arial,sans-serif;font-size:22px;font-weight:700;padding:16px;border:2.5px solid #8B5CF6;border-radius:14px;text-align:center;outline:none;color:#1E293B;background:#FAF5FF;}
+.pw-inp:focus{border-color:#6D28D9;}
+.pw-mic{background:#8B5CF6;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;padding:15px;font-family:Arial,sans-serif;width:100%;margin:12px 0;}
+.pw-mic.oyendo{background:#EF4444;animation:pulso 1.2s infinite;}
+.pw-nav{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.pw-sig{background:#10B981;color:#fff;border:none;border-radius:12px;font-size:17px;font-weight:800;cursor:pointer;padding:17px;font-family:Arial,sans-serif;grid-column:span 2;}
+.pw-atras{background:#F8FAFC;color:#64748B;border:2px solid #E2E8F0;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;padding:14px;font-family:Arial,sans-serif;}
+.pw-salir{background:#FEF2F2;color:#EF4444;border:2px solid #FECACA;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;padding:14px;font-family:Arial,sans-serif;}
+.pw-res{text-align:left;background:#F8FAFC;border-radius:12px;padding:14px;margin-bottom:16px;}
+.pw-res .fila{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #E2E8F0;font-size:14px;gap:10px;}
+.pw-res .fila:last-child{border-bottom:none;}
+.pw-res .k{color:#64748B;font-weight:700;white-space:nowrap;}
+.pw-res .v{font-weight:800;color:#1E293B;text-align:right;word-break:break-word;}
 @keyframes hfpulso{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5);}50%{box-shadow:0 0 0 9px rgba(16,185,129,0);}}
 </style>
 </head>
@@ -220,6 +239,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <div class="fg s2"><label>Nota</label><input type="text" id="p-not" placeholder="Opcional"></div>
     </div>
     <button class="bp" id="B-AP">+ Agregar cliente</button>
+    <button class="vz-mic-big" style="margin-top:8px;background:#8B5CF6" onclick="pwIniciar()">🎤 Crear préstamo guiado por voz</button>
   </div>
   <div class="card">
     <div class="thr"><div class="ct" style="margin:0">Lista de clientes</div><div style="display:flex;gap:6px;"><button class="bsr" id="B-SP">Buscar</button><button class="bg" id="B-LP" style="display:none;font-size:11px">x Todos</button></div></div>
@@ -958,6 +978,146 @@ function vzGuardar(){
 }
 function confirmarVoz(){vzGuardar();}
 function cancelarVoz(){ovCerrar();}
+
+// ══ ASISTENTE PASO A PASO PARA PRESTAMO NUEVO ══
+// Pregunta un campo a la vez: es mucho mas confiable que una sola frase larga.
+var PW_PASOS=[
+  {k:'nom',preg:'¿Nombre del cliente?',ayuda:'Puede dictarlo o escribirlo. Revise que quede bien escrito.',tipo:'texto',req:true},
+  {k:'tel',preg:'¿Teléfono?',ayuda:'Diga los números. Puede saltarlo.',tipo:'digitos',req:false},
+  {k:'ced',preg:'¿Cédula?',ayuda:'Puede saltarlo.',tipo:'digitos',req:false},
+  {k:'dir',preg:'¿Dirección?',ayuda:'Mejor escríbala: las direcciones salen mal por voz.',tipo:'texto',req:false},
+  {k:'mon',preg:'¿Valor del préstamo?',ayuda:'Diga por ejemplo "quinientos mil".',tipo:'plata',req:true},
+  {k:'int',preg:'¿Interés mensual?',ayuda:'Solo el número. Ej: "veinte" para 20%.',tipo:'pct',req:false}
+];
+var _pw=null,_pwRec=null;
+
+function pwIniciar(){
+  if(HF)hfParar();
+  _pw={i:0,d:{nom:'',tel:'',ced:'',dir:'',mon:0,int:0,fp:'efectivo',fec:hoy()}};
+  pwPaso();
+}
+function pwSalir(){
+  if(_pwRec){try{_pwRec.onend=null;_pwRec.stop();}catch(e){}_pwRec=null;}
+  _pw=null;ge('VZ-OV').classList.remove('on');
+  try{speechSynthesis.cancel();}catch(e){}_hablando=false;
+  if(HF)hfArrancar();
+}
+function pwBarra(){
+  var h='<div class="pw-barra">';
+  for(var i=0;i<=PW_PASOS.length;i++)h+='<span class="'+(i<=_pw.i?'ok':'')+'"></span>';
+  return h+'</div>';
+}
+function pwValorActual(){
+  var p=PW_PASOS[_pw.i],v=_pw.d[p.k];
+  if(!v)return '';
+  if(p.tipo==='plata')return fmt(v).replace(/[$.]/g,'');
+  return String(v);
+}
+function pwPaso(){
+  if(!_pw)return;
+  if(_pw.i>=PW_PASOS.length)return pwResumen();
+  var p=PW_PASOS[_pw.i];
+  var tipoInp=(p.tipo==='plata'||p.tipo==='pct'||p.tipo==='digitos')?'number':'text';
+  var h=pwBarra()+
+    '<div class="vz-paso">Paso '+(_pw.i+1)+' de '+(PW_PASOS.length+1)+'</div>'+
+    '<div class="pw-preg">'+p.preg+'</div>'+
+    '<div class="pw-ayuda">'+p.ayuda+'</div>'+
+    '<input class="pw-inp" id="PW-INP" type="'+tipoInp+'" value="'+pwValorActual()+'" placeholder="'+(p.req?'Obligatorio':'Opcional')+'">'+
+    '<button class="pw-mic" id="PW-MIC" onclick="pwOir()">🎤 Dictar</button>'+
+    '<div class="pw-nav">'+
+      '<button class="pw-sig" onclick="pwSiguiente()">'+(p.req?'Continuar →':'Continuar →')+'</button>'+
+      '<button class="pw-atras" onclick="pwAtras()">'+(_pw.i===0?'—':'← Atrás')+'</button>'+
+      '<button class="pw-salir" onclick="pwSalir()">✕ Salir</button>'+
+    '</div>';
+  ovMostrar(h);
+  decir(p.preg);
+}
+function pwOir(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return alert('Su navegador no soporta voz. Escriba el dato.');
+  var p=PW_PASOS[_pw.i],btn=ge('PW-MIC'),inp=ge('PW-INP');
+  btn.classList.add('oyendo');btn.textContent='🔴 Escuchando…';
+  var r=new SR();
+  r.lang='es-CO';r.continuous=false;r.interimResults=false;r.maxAlternatives=3;
+  r.onresult=function(e){
+    var alts=[];for(var k=0;k<e.results[0].length;k++)alts.push(e.results[0][k].transcript);
+    var t=alts[0];
+    if(p.tipo==='plata'){
+      var n=0;
+      for(var i=0;i<alts.length&&!n;i++){
+        n=parsearNumeroEsp(alts[i]);
+        if(!n){var m=alts[i].match(/[\d][\d,.]*/);if(m)n=parseFloat(m[0].replace(/\./g,'').replace(/,/g,''));}
+      }
+      inp.value=n||'';
+    } else if(p.tipo==='pct'){
+      var n2=parsearNumeroEsp(t);
+      if(!n2){var m2=t.match(/[\d]+([.,][\d]+)?/);if(m2)n2=parseFloat(m2[0].replace(',','.'));}
+      inp.value=n2||'';
+    } else if(p.tipo==='digitos'){
+      var d=t.replace(/\D/g,'');
+      if(!d){var n3=parsearNumeroEsp(t);if(n3)d=String(n3);}
+      inp.value=d;
+    } else {
+      // Texto: primera letra de cada palabra en mayuscula
+      inp.value=t.replace(/\s+/g,' ').trim().replace(/(^|\s)([a-záéíóúñ])/g,function(_,a,b){return a+b.toUpperCase();});
+    }
+  };
+  r.onerror=function(){};
+  r.onend=function(){btn.classList.remove('oyendo');btn.textContent='🎤 Dictar';_pwRec=null;};
+  _pwRec=r;
+  try{r.start();}catch(e){btn.classList.remove('oyendo');btn.textContent='🎤 Dictar';}
+}
+function pwLeerInput(){
+  var p=PW_PASOS[_pw.i],inp=ge('PW-INP');
+  if(!inp)return true;
+  var v=inp.value.trim();
+  if(p.req&&!v){alert('Este dato es obligatorio.');return false;}
+  if(p.tipo==='plata'||p.tipo==='pct')_pw.d[p.k]=parseFloat(v)||0;
+  else _pw.d[p.k]=v;
+  if(p.req&&(p.tipo==='plata')&&!_pw.d[p.k]){alert('Ingrese un valor mayor a 0.');return false;}
+  return true;
+}
+function pwSiguiente(){if(!pwLeerInput())return;_pw.i++;pwPaso();}
+function pwAtras(){if(_pw.i===0)return;var inp=ge('PW-INP');if(inp){var p=PW_PASOS[_pw.i];_pw.d[p.k]=(p.tipo==='plata'||p.tipo==='pct')?(parseFloat(inp.value)||0):inp.value.trim();}_pw.i--;pwPaso();}
+
+function pwResumen(){
+  var d=_pw.d;
+  var interes=d.mon*d.int/100, total=d.mon+interes;
+  var h=pwBarra()+
+    '<div class="vz-paso">Paso '+(PW_PASOS.length+1)+' de '+(PW_PASOS.length+1)+' · Revisar y guardar</div>'+
+    '<div class="vz-cli" style="color:#8B5CF6">'+d.nom+'</div>'+
+    '<div class="vz-mon" style="color:#3B82F6;font-size:44px">'+fmt(d.mon)+'</div>'+
+    '<div class="pw-res">'+
+      (d.tel?'<div class="fila"><span class="k">Teléfono</span><span class="v">'+d.tel+'</span></div>':'')+
+      (d.ced?'<div class="fila"><span class="k">Cédula</span><span class="v">'+d.ced+'</span></div>':'')+
+      (d.dir?'<div class="fila"><span class="k">Dirección</span><span class="v">'+d.dir+'</span></div>':'')+
+      '<div class="fila"><span class="k">Interés</span><span class="v">'+d.int+'% = '+fmt(interes)+'</span></div>'+
+      '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
+      '<div class="fila"><span class="k">Fecha</span><span class="v">'+d.fec+'</span></div>'+
+    '</div>'+
+    '<div class="vz-fp">'+
+      '<button class="'+(d.fp==='efectivo'?'on':'')+'" onclick="pwForma(\'efectivo\')">Efectivo</button>'+
+      '<button class="'+(d.fp==='nequi'?'on':'')+'" onclick="pwForma(\'nequi\')">Nequi</button>'+
+    '</div>'+
+    '<div class="pw-nav">'+
+      '<button class="pw-sig" onclick="pwGuardar()">✓ GUARDAR PRÉSTAMO</button>'+
+      '<button class="pw-atras" onclick="pwAtras()">← Corregir</button>'+
+      '<button class="pw-salir" onclick="pwSalir()">✕ Salir</button>'+
+    '</div>';
+  ovMostrar(h);
+  decir(d.nom+', '+d.mon.toLocaleString('es-CO')+' pesos. ¿Guardo?');
+}
+function pwForma(f){_pw.d.fp=f;pwResumen();}
+function pwGuardar(){
+  var d=_pw.d;
+  if(!d.nom||!d.mon)return alert('Faltan datos.');
+  P.push(nP({id:Date.now(),nom:d.nom,ced:d.ced,tel:d.tel,dir:d.dir,mon:d.mon,int:d.int,fec:d.fec,fp:d.fp,not:'[voz guiada]',est:'activo'}));
+  save();rAll();
+  var msg='✓ Préstamo creado: '+d.nom+' '+fmt(d.mon);
+  pwSalir();
+  _flash(msg);
+  decir('Préstamo guardado');
+}
 </script>
 </body>
 </html>
