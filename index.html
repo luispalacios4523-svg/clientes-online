@@ -223,7 +223,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 </div>
 <div class="sec active" id="S-res">
   <div style="height:12px"></div>
-  <button class="vz-mic-big" onclick="iniciarVoz()">🎤 Registrar por voz</button>
+  <button class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar: abonar o buscar</button>
   <button class="hf-btn" id="HF-BTN-res" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
   <div id="mic-status-res" style="font-size:13px;color:#10B981;font-weight:700;margin:10px 0 12px;text-align:center"></div>
   <div class="cap"><label>Capital inicial</label><input type="number" id="x-CI" placeholder="0"><div class="note">Caja = Capital + Cobrado efectivo - Entregado efectivo - Gastos efectivo</div></div>
@@ -296,7 +296,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
     </div>
     <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón ✓ para guardar pago</p>
     <div style="margin-bottom:12px">
-      <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Registrar por voz</button>
+      <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar: abonar o buscar</button>
       <button class="hf-btn" id="HF-BTN-pre" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
       <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
       <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
@@ -882,7 +882,7 @@ function iniciarVoz(){
   if(HF){hfParar();}
   ovMostrar('<div class="vz-paso">Escuchando…</div>'+
     '<div class="vz-esc">🎤</div>'+
-    '<div style="font-size:16px;color:#64748B;margin-bottom:20px;line-height:1.5">Diga el <b>nombre</b> y el <b>monto</b><br><span style="font-size:13px">ej: "abono Patricia veinte mil"</span></div>'+
+    '<div style="font-size:16px;color:#64748B;margin-bottom:20px;line-height:1.5">Para abonar: <b>nombre y monto</b><br><span style="font-size:13px">ej: &quot;abono Patricia veinte mil&quot;</span><br><br>Para consultar: <b>buscar y el nombre</b><br><span style="font-size:13px">ej: &quot;buscar Julio César&quot;</span></div>'+
     '<button class="vz-no" style="width:100%" onclick="ovCerrar()">✕ Cancelar</button>');
   var rec=new SR();
   rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;rec.maxAlternatives=3;
