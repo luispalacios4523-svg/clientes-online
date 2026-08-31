@@ -1,6 +1,11 @@
 from flask import Flask, request, jsonify, send_file
 import json
 import os
+import time
+import hmac
+import base64
+import hashlib
+import secrets
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
@@ -97,6 +102,106 @@ def _cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
+
+# ─────────────────────────────────────────────────────────────
+#  AUTENTICACION
+#  Las contrasenas se guardan cifradas (PBKDF2), nunca en texto
+#  plano, y /api/load y /api/save exigen un token valido.
+# ─────────────────────────────────────────────────────────────
+
+def _secreto():
+    s = db_get('auth_secret')
+    if not s:
+        s = secrets.token_hex(32)
+        db_set('auth_secret', s)
+    return s.encode()
+
+
+def _cifrar(pw, sal=None):
+    if sal is None:
+        sal = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac('sha256', pw.encode('utf-8'), sal.encode(), 120000).hex()
+    return {'sal': sal, 'hash': h}
+
+
+def _coincide(pw, reg):
+    if not reg or 'sal' not in reg or 'hash' not in reg:
+        return False
+    h = hashlib.pbkdf2_hmac('sha256', pw.encode('utf-8'), reg['sal'].encode(), 120000).hex()
+    return hmac.compare_digest(h, reg['hash'])
+
+
+def _usuarios():
+    u = db_get('ap_users')
+    if not u:
+        # Migracion: toma la contrasena que hubiera en texto plano y la cifra
+        viejo = db_get('ap_pass') or {}
+        u = {
+            'admin': _cifrar(viejo.get('admin') or 'admin123'),
+            'cobrador': _cifrar(viejo.get('cobrador') or 'cobrador123'),
+        }
+        db_set('ap_users', u)
+        db_set('ap_pass', None)   # se borra el texto plano
+    return u
+
+
+def _token(rol, dias=30):
+    exp = int(time.time()) + dias * 86400
+    msg = '%s:%d' % (rol, exp)
+    firma = hmac.new(_secreto(), msg.encode(), hashlib.sha256).hexdigest()
+    return base64.urlsafe_b64encode(('%s:%s' % (msg, firma)).encode()).decode()
+
+
+def _verificar(token):
+    try:
+        crudo = base64.urlsafe_b64decode(token.encode()).decode()
+        rol, exp, firma = crudo.split(':')
+        msg = '%s:%s' % (rol, exp)
+        esperada = hmac.new(_secreto(), msg.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(firma, esperada):
+            return None
+        if int(exp) < time.time():
+            return None
+        return rol
+    except Exception:
+        return None
+
+
+def _sesion():
+    return _verificar(request.headers.get('X-Auth', ''))
+
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    body = request.json or {}
+    rol = body.get('rol')
+    pw = body.get('pass') or ''
+    if rol not in ('admin', 'cobrador'):
+        return jsonify({'ok': False}), 400
+    time.sleep(0.4)   # frena los intentos por fuerza bruta
+    if not _coincide(pw, _usuarios().get(rol)):
+        return jsonify({'ok': False, 'motivo': 'credenciales'}), 401
+    return jsonify({'ok': True, 'token': _token(rol), 'rol': rol})
+
+
+@app.route('/api/password', methods=['POST'])
+def cambiar_password():
+    rol_sesion = _sesion()
+    if rol_sesion != 'admin':
+        return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 403
+    body = request.json or {}
+    objetivo = body.get('rol')
+    nueva = body.get('nueva') or ''
+    if objetivo not in ('admin', 'cobrador') or len(nueva) < 4:
+        return jsonify({'ok': False, 'motivo': 'datos'}), 400
+    u = _usuarios()
+    # Para cambiar la del admin hay que saber la actual
+    if objetivo == 'admin' and not _coincide(body.get('actual') or '', u.get('admin')):
+        return jsonify({'ok': False, 'motivo': 'actual_incorrecta'}), 401
+    u[objetivo] = _cifrar(nueva)
+    db_set('ap_users', u)
+    return jsonify({'ok': True})
+
 @app.route('/')
 def index():
     from flask import make_response
@@ -113,9 +218,9 @@ def efectivo():
 
 @app.route('/api/load')
 def load():
-    data = db_get('ap_all_v2')
-    passwd = db_get('ap_pass')
-    return jsonify({'data': data, 'pass': passwd})
+    if not _sesion():
+        return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 401
+    return jsonify({'data': db_get('ap_all_v2')})
 
 def _cuenta(d):
     """Cuantos registros trae un paquete de datos."""
@@ -141,6 +246,8 @@ def _snapshot(data):
 
 @app.route('/api/save', methods=['POST'])
 def save():
+    if not _sesion():
+        return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 401
     body = request.json
     if not body:
         return jsonify({'ok': False}), 400
@@ -166,8 +273,7 @@ def save():
         _snapshot(nuevo)
         db_set('ap_all_v2', nuevo)
 
-    if 'pass' in body:
-        db_set('ap_pass', body['pass'])
+    # 'pass' ya no se acepta aqui: las contrasenas van por /api/password
     if 'efectivo_actual' in body:
         db_set('efectivo_actual', body['efectivo_actual'])
     return jsonify({'ok': True})
@@ -176,6 +282,8 @@ def save():
 @app.route('/api/snapshots')
 def snapshots():
     """Lista las copias automaticas guardadas en el servidor."""
+    if not _sesion():
+        return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 401
     idx = db_get('snap_index', []) or []
     salida = []
     for sello in reversed(idx):
@@ -188,6 +296,8 @@ def snapshots():
 
 @app.route('/api/snapshot/<sello>')
 def snapshot_uno(sello):
+    if not _sesion():
+        return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 401
     d = db_get('snap_' + sello)
     if not d:
         return jsonify({'ok': False, 'motivo': 'no_existe'}), 404
