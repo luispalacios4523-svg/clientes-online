@@ -300,7 +300,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <button class="hf-btn" id="HF-BTN-pre" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
       <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
       <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
-        Diga: <b>"abono Patricia veinte mil"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
+        Diga: <b>"abono Patricia veinte mil"</b> · <b>"buscar Julio César"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
       </div>
     </div>
     <div id="LIST-pre"></div>
@@ -698,9 +698,11 @@ function detectarForma(txt){
   return'efectivo';
 }
 function detectarIntencion(txt){
-  var t=txt.toLowerCase();
-  if(t.startsWith('gasto')||t.startsWith('gasté')||t.startsWith('gaste')||t.includes('gasto de'))return'gasto';
-  if(t.startsWith('préstamo')||t.startsWith('prestamo')||t.startsWith('nuevo cliente')||t.startsWith('cliente nuevo'))return'prestamo';
+  var t=norm(txt);
+  if(/^(buscar|busca|busque|consultar|consulta|ver|mostrar|muestra)\b/.test(t))return'buscar';
+  if(/\b(cuanto (me )?debe|cuanto le queda|saldo de|que saldo)\b/.test(t))return'buscar';
+  if(/^(gasto|gaste)\b/.test(t)||t.indexOf('gasto de')>=0)return'gasto';
+  if(/^(prestamo|nuevo cliente|cliente nuevo)\b/.test(t))return'prestamo';
   return'pago';
 }
 // Normaliza: minusculas, sin acentos, sin signos
@@ -792,7 +794,8 @@ function _flash(msg){
 // ══ MODO MANOS LIBRES ══
 // La app escucha todo el tiempo pero solo actua cuando oye una palabra clave.
 var HF=false,_recHF=null,_hablando=false,_vzCands=[],_hfReinicio=null;
-var CLAVES=['abono','abona','abonar','pago','pague','pagó','pago de','gasto','gasté','gaste','prestamo','préstamo'];
+var CLAVES=['abono','abona','abonar','pago','pague','pagó','pago de','gasto','gasté','gaste','prestamo','préstamo','buscar','busca','busque','consulta','consultar','cuanto','cuánto','saldo'];
+var _vzModo='pago';
 function tieneClave(t){
   var n=norm(t);
   for(var i=0;i<CLAVES.length;i++){
@@ -854,7 +857,11 @@ function hfOir(alts){
       var num={'uno':1,'una':1,'1':1,'dos':2,'2':2,'tres':3,'3':3,'cuatro':4,'4':4};
       var pal=n.split(' ');
       for(var i=0;i<pal.length;i++){
-        if(num[pal[i]]&&_vzCands[num[pal[i]]-1]){vzElegido(_vzCands[num[pal[i]]-1].p.id);return;}
+        if(num[pal[i]]&&_vzCands[num[pal[i]]-1]){
+          var elegido=_vzCands[num[pal[i]]-1].p.id;
+          if(_vzModo==='buscar')ovFicha(elegido);else vzElegido(elegido);
+          return;
+        }
       }
     }
     if(/\b(si|sí|confirmo|confirmar|correcto|guardar|guarda|listo|dale)\b/.test(n)){vzGuardar();return;}
@@ -905,6 +912,22 @@ function procesarVoz(alts){
     monto=parsearNumeroEsp(alts[i]);
     if(!monto){var m=alts[i].match(/[\d][\d,.]*/);if(m)monto=parseFloat(m[0].replace(/\./g,'').replace(/,/g,''));}
   }
+  if(intencion==='buscar'){
+    // Buscar entre TODOS los clientes, incluso los ya saldados
+    var cb=[],vb={};
+    alts.forEach(function(a){
+      var limpio=a.replace(/^(buscar|busca|busque|consultar|consulta|ver|mostrar|muestra)\s+/i,'')
+                  .replace(/cu[aá]nto\s+(me\s+)?debe/i,'').replace(/saldo\s+de/i,'');
+      rankClientes(limpio).forEach(function(c){
+        if(!vb[c.p.id]){vb[c.p.id]=1;cb.push(c);}
+        else{var ex=cb.filter(function(x){return x.p.id===c.p.id;})[0];if(ex&&c.score>ex.score)ex.score=c.score;}
+      });
+    });
+    cb.sort(function(a,b){return b.score-a.score;});
+    if(!cb.length)return ovError('No encontré ese cliente.',texto);
+    if(cb.length===1)return ovFicha(cb[0].p.id);
+    return ovListaBusqueda(cb.slice(0,6),texto);
+  }
   if(intencion==='gasto'){
     var desc=extraerDescripcion(texto,['gasto','gasté','gaste']);
     _vozDato={tipo:'gasto',desc:desc||'Gasto',monto:monto,forma:forma,texto:texto};
@@ -945,6 +968,80 @@ function procesarVoz(alts){
   ovElegir(conSaldo.slice(0,4),monto,texto);
 }
 
+// ── BUSQUEDA POR VOZ ──
+function ovListaBusqueda(cands,texto){
+  var h='<div class="vz-paso">¿Cuál cliente?</div>'+
+    '<div class="vz-oido">Escuché: "'+String(texto).replace(/"/g,'&quot;')+'"</div>'+
+    cands.map(function(c,i){
+      var s=saldo(c.p),sal=s===0;
+      return '<button class="vz-cand" onclick="ovFicha('+c.p.id+')">'+
+        '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
+        '<div class="d">'+(sal?'<b style="color:#10B981">Saldado</b>':'Saldo: <b style="color:#EF4444">'+fmt(s)+'</b>')+
+        (c.p.fec?' · 📅 '+c.p.fec:'')+'</div></button>';
+    }).join('')+
+    '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button></div>';
+  ovMostrar(h);
+  _vzCands=cands;_vzModo='buscar';
+  decir('Encontré varios. Diga el número.');
+}
+
+function ovFicha(id){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return ovCerrar();
+  var pagos=PG.filter(function(x){return x.did===id;}).sort(function(a,b){return b.fec.localeCompare(a.fec);});
+  var pagado=pagos.filter(function(x){return x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0);
+  var interes=p.mon*p.int/100, total=p.mon+interes, s=saldo(p);
+  var ultimo=pagos.length?pagos[0]:null;
+  var dias=ultimo?Math.floor((new Date()-new Date(ultimo.fec))/(1000*60*60*24)):null;
+
+  var h='<div class="vz-paso">Ficha del cliente</div>'+
+    '<div class="vz-cli">'+p.nom+'</div>'+
+    '<div class="vz-meta">'+(p.dir?p.dir:'')+(p.tel?' · '+p.tel:'')+(p.ced?' · CC '+p.ced:'')+'</div>'+
+    '<div class="vz-paso" style="margin:14px 0 4px">Saldo pendiente</div>'+
+    '<div class="vz-mon" style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</div>'+
+    (s===0?'<div style="font-size:14px;color:#10B981;font-weight:800;margin-bottom:10px">✓ SALDADO</div>':'')+
+    (dias!==null&&s>0&&dias>3?'<div class="vz-alert">⚠️ Lleva '+dias+' días sin abonar</div>':'')+
+    '<div class="pw-res">'+
+      '<div class="fila"><span class="k">Préstamo</span><span class="v">'+fmt(p.mon)+'</span></div>'+
+      '<div class="fila"><span class="k">Interés '+p.int+'%</span><span class="v">'+fmt(interes)+'</span></div>'+
+      '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
+      '<div class="fila"><span class="k">Ya pagó</span><span class="v" style="color:#10B981">'+fmt(pagado)+'</span></div>'+
+      '<div class="fila"><span class="k">Fecha préstamo</span><span class="v">'+(p.fec||'-')+'</span></div>'+
+      '<div class="fila"><span class="k">Entregado en</span><span class="v">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transferencia'))+'</span></div>'+
+    '</div>';
+
+  if(pagos.length){
+    h+='<div class="vz-paso" style="text-align:left;margin-bottom:6px">Últimos abonos ('+pagos.length+' en total)</div>'+
+      '<div class="pw-res">'+pagos.slice(0,6).map(function(x){
+        return '<div class="fila"><span class="k">'+x.fec+'</span><span class="v" style="color:#10B981">'+fmt(x.mon)+
+          ' <span style="font-weight:400;color:#94A3B8;font-size:11px">'+((x.fp||'efectivo')==='efectivo'?'Efe':(x.fp==='nequi'?'Neq':'Tra'))+'</span></span></div>';
+      }).join('')+'</div>';
+  } else {
+    h+='<div class="em" style="padding:10px">Sin abonos registrados</div>';
+  }
+
+  h+='<div class="vz-btns">'+
+      (s>0?'<button class="vz-si" onclick="ovAbonarDesdeFicha('+p.id+')">＋ REGISTRAR ABONO</button>':'')+
+      '<button class="vz-rep" onclick="iniciarVoz()">🎤 Otra búsqueda</button>'+
+      '<button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button>'+
+    '</div>';
+  ovMostrar(h);
+  _vzCands=[];
+  // Decirlo en voz alta para no tener que mirar
+  var frase=p.nom+'. ';
+  frase+= s>0 ? ('Debe '+Math.round(s).toLocaleString('es-CO')+' pesos.') : 'Está saldado.';
+  if(dias!==null&&s>0&&dias>3)frase+=' Lleva '+dias+' días sin abonar.';
+  decir(frase);
+}
+
+function ovAbonarDesdeFicha(id){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return;
+  _vozDato={tipo:'pago',cliente:p,monto:0,forma:'efectivo',texto:'(escrito a mano)'};
+  ovConfirmar();
+  var m=ge('VZ-MON');if(m){m.value='';m.focus();}
+}
+
 function ovError(msg,texto){
   ovMostrar('<div class="vz-paso">No se pudo registrar</div>'+
     '<div class="vz-err">⚠️ '+msg+'</div>'+
@@ -965,7 +1062,7 @@ function ovElegir(cands,monto,texto){
     }).join('')+
     '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
   ovMostrar(h);
-  _vzCands=cands;
+  _vzCands=cands;_vzModo='pago';
   decir(HF?'Encontré varios parecidos. Diga el número.':'Encontré varios parecidos. ¿Cuál es?');
 }
 function vzElegido(id){
@@ -1017,7 +1114,7 @@ function ovConfirmar(){
     hablar='Préstamo nuevo para '+d.nombre+', '+d.monto.toLocaleString('es-CO')+' pesos. ¿Confirmo?';
   }
   // Si el monto quedo chico, ofrecer multiplicar por mil (dijo "veinte" por "veinte mil")
-  if(d.monto<1000){
+  if(d.monto>0&&d.monto<1000){
     h+='<button class="vz-x1000" onclick="vzPorMil()">¿Quiso decir '+fmt(d.monto*1000)+'? Tocar para cambiar</button>';
   }
   if(HF)h+='<div style="font-size:12px;color:#10B981;font-weight:700;margin-bottom:10px">👂 Diga <b>"SÍ"</b> para guardar o <b>"NO"</b> para cancelar</div>';
