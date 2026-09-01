@@ -130,8 +130,8 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .fm-sal{font-size:14px;text-align:right;}
 .fm-btns{display:flex;gap:4px;justify-content:flex-end;}
 .fm-del{background:none;border:none;color:#EF4444;font-size:14px;cursor:pointer;padding:4px;}
-.fm-ren{background:none;border:none;color:#8B5CF6;font-size:16px;cursor:pointer;padding:4px;}
-.fm-ren:disabled{color:#CBD5E1;cursor:default;}
+.fm-ren{background:#F5F3FF;border:1.5px solid #8B5CF6;border-radius:8px;color:#8B5CF6;font-size:16px;font-weight:800;cursor:pointer;padding:4px 9px;}
+.fm-ren:hover{background:#8B5CF6;color:#fff;}
 .fm-ok{background:#10B981;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:800;cursor:pointer;padding:4px 8px;font-family:Arial,sans-serif;}
 .fm-ok:hover{background:#059669;}
 /* ── Confirmacion por voz a pantalla completa ── */
@@ -747,7 +747,8 @@ function rPre(){
       '<div class="fm-sal" style="color:'+saldoColor+';font-weight:800">'+fmt(s)+'</div>'+
       '<div class="fm-btns">'+
         (isAdmin()?'<button class="BD fm-del" data-id="'+p.id+'" title="Eliminar">✕</button>':'')+
-        '<button class="BR fm-ren" data-id="'+p.id+'" title="Renovar"'+(s===0&&p.est!=='renovado'?'':' disabled')+'>↺</button>'+
+        // Solo aparece cuando de verdad se puede renovar (saldo en cero)
+        (s===0&&p.est!=='renovado'?'<button class="BR fm-ren" data-id="'+p.id+'" title="Renovar este cliente">↺</button>':'')+
       '</div>'+
     '</div>';
   }).join('');
