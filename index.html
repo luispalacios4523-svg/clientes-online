@@ -322,7 +322,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <button class="hf-btn" id="HF-BTN-pre" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
       <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
       <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
-        Diga: <b>"abono Patricia veinte mil"</b> · <b>"buscar Julio César"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
+        Diga: <b>"abono Patricia veinte mil"</b> · <b>"buscar Julio César"</b> · <b>"renovar Sandra cien mil"</b> · <b>"gasto gasolina treinta mil"</b> · <b>"préstamo Carlos quinientos mil"</b>
       </div>
     </div>
     <div id="LIST-pre"></div>
@@ -840,6 +840,7 @@ function detectarIntencion(txt){
   var t=norm(txt);
   if(/^(buscar|busca|busque|consultar|consulta|ver|mostrar|muestra)\b/.test(t))return'buscar';
   if(/\b(cuanto (me )?debe|cuanto le queda|saldo de|que saldo)\b/.test(t))return'buscar';
+  if(/^(renovar|renueva|renovacion|renovarle|renovale)\b/.test(t))return'renovar';
   if(/^(gasto|gaste)\b/.test(t)||t.indexOf('gasto de')>=0)return'gasto';
   if(/^(prestamo|nuevo cliente|cliente nuevo)\b/.test(t))return'prestamo';
   return'pago';
@@ -933,7 +934,7 @@ function _flash(msg){
 // ══ MODO MANOS LIBRES ══
 // La app escucha todo el tiempo pero solo actua cuando oye una palabra clave.
 var HF=false,_recHF=null,_hablando=false,_vzCands=[],_hfReinicio=null;
-var CLAVES=['abono','abona','abonar','pago','pague','pagó','pago de','gasto','gasté','gaste','prestamo','préstamo','buscar','busca','busque','consulta','consultar','cuanto','cuánto','saldo'];
+var CLAVES=['abono','abona','abonar','pago','pague','pagó','pago de','gasto','gasté','gaste','prestamo','préstamo','buscar','busca','busque','consulta','consultar','cuanto','cuánto','saldo','renovar','renueva','renovación','renovacion'];
 var _vzModo='pago';
 function tieneClave(t){
   var n=norm(t);
@@ -1003,7 +1004,9 @@ function hfOir(alts){
       for(var i=0;i<pal.length;i++){
         if(num[pal[i]]&&_vzCands[num[pal[i]]-1]){
           var elegido=_vzCands[num[pal[i]]-1].p.id;
-          if(_vzModo==='buscar')ovFicha(elegido);else vzElegido(elegido);
+          if(_vzModo==='buscar')ovFicha(elegido);
+          else if(_vzModo==='renovar')vzRenovarElegido(elegido);
+          else vzElegido(elegido);
           return;
         }
       }
@@ -1072,6 +1075,30 @@ function procesarVoz(alts){
     if(cb.length===1)return ovFicha(cb[0].p.id);
     return ovListaBusqueda(cb.slice(0,6),texto);
   }
+  if(intencion==='renovar'){
+    if(!monto)return ovError('No entendí el monto del nuevo préstamo.',texto);
+    var cr=[],vr={};
+    alts.forEach(function(a){
+      var limpio=a.replace(/^(renovar|renueva|renovaci[oó]n|renovarle|renovale)\s+/i,'');
+      rankClientes(limpio).forEach(function(c){
+        if(!vr[c.p.id]){vr[c.p.id]=1;cr.push(c);}
+      });
+    });
+    cr.sort(function(a,b){return b.score-a.score;});
+    if(!cr.length)return ovError('No encontré ese cliente.',texto);
+    // Solo se renueva lo que ya esta saldado
+    var listos=cr.filter(function(c){return saldo(c.p)===0&&c.p.est!=='renovado';});
+    if(!listos.length){
+      var q=cr[0].p;
+      return ovError(q.nom+' todavía debe '+fmt(saldo(q))+'. Solo se renueva con saldo en cero.',texto);
+    }
+    if(listos.length===1){
+      _vozDato={tipo:'renovar',cliente:listos[0].p,monto:monto,forma:forma,texto:texto};
+      return ovConfirmar();
+    }
+    _vozDato={tipo:'renovar',monto:monto,forma:forma,texto:texto};
+    return ovListaRenovar(listos.slice(0,5),monto,texto);
+  }
   if(intencion==='gasto'){
     var desc=extraerDescripcion(texto,['gasto','gasté','gaste']);
     _vozDato={tipo:'gasto',desc:desc||'Gasto',monto:monto,forma:forma,texto:texto};
@@ -1110,6 +1137,28 @@ function procesarVoz(alts){
   // Varios prestamos activos con nombre parecido: preguntar cual
   _vozDato={tipo:'pago',monto:monto,forma:forma,texto:texto};
   ovElegir(conSaldo.slice(0,4),monto,texto);
+}
+
+// Varios clientes saldados con el mismo nombre: cual renovar
+function ovListaRenovar(cands,monto,texto){
+  var h='<div class="vz-paso">¿Cuál renovar?</div>'+
+    '<div class="vz-mon" style="color:#8B5CF6;font-size:38px">'+fmt(monto)+'</div>'+
+    '<div class="vz-oido">Escuché: "'+String(texto).replace(/"/g,'&quot;')+'"</div>'+
+    cands.map(function(c,i){
+      return '<button class="vz-cand" onclick="vzRenovarElegido('+c.p.id+')">'+
+        '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
+        '<div class="d">Préstamo anterior: <b>'+fmt(c.p.mon)+'</b> · interés '+c.p.int+'%'+(c.p.fec?' · 📅 '+c.p.fec:'')+'</div></button>';
+    }).join('')+
+    '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cancelar</button></div>';
+  ovMostrar(h);
+  _vzCands=cands;_vzModo='renovar';
+  decir('Encontré varios saldados. Diga el número.');
+}
+function vzRenovarElegido(id){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p||!_vozDato)return ovCerrar();
+  _vozDato.cliente=p;
+  ovConfirmar();
 }
 
 // ── BUSQUEDA POR VOZ ──
@@ -1345,6 +1394,22 @@ function ovConfirmar(){
       '<div class="vz-saldos"><div><div class="l">Saldo ahora</div><div class="v" style="color:#EF4444">'+fmt(s)+'</div></div>'+
       '<div><div class="l">Saldo después</div><div class="v" style="color:#10B981" id="VZ-DESP">'+fmt(desp)+'</div></div></div>';
     hablar='Abono de '+d.cliente.nom+', '+d.monto.toLocaleString('es-CO')+' pesos. ¿Confirmo?';
+  } else if(d.tipo==='renovar'){
+    var v=d.cliente,ints=(d.interes!=null?d.interes:v.int),intv=d.monto*ints/100;
+    h='<div class="vz-paso">Confirmar renovación</div>'+
+      '<div class="vz-cli" style="color:#8B5CF6">'+v.nom+'</div>'+
+      '<div class="vz-meta">'+(v.dir||'')+(v.tel?' · '+v.tel:'')+'</div>'+
+      '<div class="vz-mon" style="color:#8B5CF6">'+fmt(d.monto)+'</div>'+
+      '<div class="vz-oido">Escuché: "'+d.texto+'"</div>'+
+      '<div class="pw-res">'+
+        '<div class="fila"><span class="k">Préstamo anterior</span><span class="v">'+fmt(v.mon)+' · saldado</span></div>'+
+        '<div class="fila"><span class="k">Nuevo préstamo</span><span class="v" style="color:#8B5CF6">'+fmt(d.monto)+'</span></div>'+
+        '<div class="fila"><span class="k">Interés '+ints+'%</span><span class="v">'+fmt(intv)+'</span></div>'+
+        '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(d.monto+intv)+'</span></div>'+
+        '<div class="fila"><span class="k">Fecha</span><span class="v">'+hoy()+'</span></div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:#94A3B8;margin-bottom:12px;line-height:1.5">El interés es el mismo del préstamo anterior. Puede cambiarlo después tocando el cliente.</div>';
+    hablar='Renovar '+v.nom+' por '+d.monto.toLocaleString('es-CO')+' pesos, interés '+ints+' por ciento. ¿Confirmo?';
   } else if(d.tipo==='gasto'){
     h='<div class="vz-paso">Confirmar gasto</div>'+
       '<div class="vz-campo"><label>Descripción</label>'+
@@ -1442,6 +1507,15 @@ function vzGuardar(){
     PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
     msg='✓ Abono guardado: '+d.cliente.nom+' '+fmt(d.monto)+' ('+fp+')';
     decir('Guardado. '+d.cliente.nom+'. Saldo '+Math.max(0,saldo(d.cliente)).toLocaleString('es-CO')+' pesos.');
+  } else if(d.tipo==='renovar'){
+    var v=d.cliente;
+    if(!v)return ovCerrar();
+    if(saldo(v)>0)return alert('Ese cliente ya no tiene saldo en cero. No se puede renovar.');
+    var ints=(d.interes!=null?d.interes:v.int);
+    v.est='renovado';
+    P.push(nP({id:Date.now(),nom:v.nom,ced:v.ced,tel:v.tel,dir:v.dir,mon:d.monto,int:ints,fec:hoy(),fp:fp,not:'Renovación [voz]',est:'activo'}));
+    msg='✓ Renovado: '+v.nom+' '+fmt(d.monto);
+    decir('Renovado. '+v.nom+', '+d.monto.toLocaleString('es-CO')+' pesos.');
   } else if(d.tipo==='gasto'){
     G.push({id:Date.now(),des:d.desc,mon:d.monto,fec:hoy(),cat:'General',fp:fp,not:'[voz]'});
     msg='✓ Gasto guardado: '+d.desc+' '+fmt(d.monto);
