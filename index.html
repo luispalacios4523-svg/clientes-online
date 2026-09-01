@@ -180,6 +180,10 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .em-btn.grande{font-size:18px;padding:14px 22px;}
 .em-mic{background:#8B5CF6;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;padding:15px;font-family:Arial,sans-serif;width:100%;margin-bottom:12px;}
 .em-mic.oyendo{background:#EF4444;animation:pulso 1.2s infinite;}
+.vz-cmds{text-align:left;background:#F8FAFC;border-radius:12px;padding:12px 14px;margin-bottom:18px;}
+.vz-cmds .cmd{font-size:14px;color:#64748B;padding:5px 0;border-bottom:1px solid #E2E8F0;}
+.vz-cmds .cmd:last-child{border-bottom:none;}
+.vz-cmds .c{color:#3B82F6;font-weight:800;}
 .vz-mic-big{background:#3B82F6;color:#fff;border:none;border-radius:14px;padding:17px 22px;font-size:16px;font-weight:800;cursor:pointer;font-family:Arial,sans-serif;width:100%;}
 /* Campos editables dentro de la confirmacion */
 .vz-campo{margin-bottom:12px;text-align:left;}
@@ -245,7 +249,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 </div>
 <div class="sec active" id="S-res">
   <div style="height:12px"></div>
-  <button class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar: abonar o buscar</button>
+  <button class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar</button>
   <button class="hf-btn" id="HF-BTN-res" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
   <div id="mic-status-res" style="font-size:13px;color:#10B981;font-weight:700;margin:10px 0 12px;text-align:center"></div>
   <div class="cap"><label>Capital inicial</label><input type="number" id="x-CI" placeholder="0"><div class="note">Caja = Capital + Cobrado efectivo - Entregado efectivo - Gastos efectivo</div></div>
@@ -318,7 +322,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
     </div>
     <p class="hint" id="hint-pre">Toca el nombre para editar (solo admin) · Botón ✓ para guardar pago</p>
     <div style="margin-bottom:12px">
-      <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar: abonar o buscar</button>
+      <button id="btn-mic" class="vz-mic-big" onclick="iniciarVoz()">🎤 Hablar</button>
       <button class="hf-btn" id="HF-BTN-pre" onclick="toggleHF()">👂 Manos libres: APAGADO</button>
       <div id="mic-status" style="font-size:13px;color:#10B981;font-weight:700;margin-top:8px;text-align:center"></div>
       <div style="font-size:11px;color:#94A3B8;margin-top:6px;text-align:center;line-height:1.5">
@@ -1029,7 +1033,13 @@ function iniciarVoz(){
   if(HF){hfParar();}
   ovMostrar('<div class="vz-paso">Escuchando…</div>'+
     '<div class="vz-esc">🎤</div>'+
-    '<div style="font-size:16px;color:#64748B;margin-bottom:20px;line-height:1.5">Para abonar: <b>nombre y monto</b><br><span style="font-size:13px">ej: &quot;abono Patricia veinte mil&quot;</span><br><br>Para consultar: <b>buscar y el nombre</b><br><span style="font-size:13px">ej: &quot;buscar Julio César&quot;</span></div>'+
+    '<div class="vz-cmds">'+
+      '<div class="cmd"><span class="c">abono</span> Patricia veinte mil</div>'+
+      '<div class="cmd"><span class="c">buscar</span> Julio César</div>'+
+      '<div class="cmd"><span class="c">renovar</span> Sandra cien mil</div>'+
+      '<div class="cmd"><span class="c">gasto</span> gasolina treinta mil</div>'+
+      '<div class="cmd"><span class="c">préstamo</span> Carlos quinientos mil</div>'+
+    '</div>'+
     '<button class="vz-no" style="width:100%" onclick="ovCerrar()">✕ Cancelar</button>');
   var rec=new SR();
   rec.lang='es-CO';rec.continuous=false;rec.interimResults=false;rec.maxAlternatives=3;
