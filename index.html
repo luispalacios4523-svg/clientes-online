@@ -273,7 +273,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
     <button class="vz-mic-big" style="margin-top:8px;background:#8B5CF6" onclick="pwIniciar()">🎤 Crear préstamo guiado por voz</button>
   </div>
   <div class="card">
-    <div class="thr"><div class="ct" style="margin:0">Lista de clientes</div><div style="display:flex;gap:6px;"><button class="bsr" id="B-SP">Buscar</button><button class="bg" id="B-LP" style="display:none;font-size:11px">x Todos</button></div></div>
+    <div class="thr"><div class="ct" style="margin:0">Lista de clientes</div><div style="display:flex;gap:6px;"><button class="bsr on" id="B-SOLOSALDO" onclick="toggleSoloSaldo()">Con saldo</button><button class="bsr" id="B-SP">Buscar</button><button class="bg" id="B-LP" style="display:none;font-size:11px">x Todos</button></div></div>
     <div class="pnl sr" id="PNL-SP"><div class="pt">Buscar cliente</div>
       <div class="fr">
         <div class="fg"><label>Nombre</label><input type="text" id="sp-nom" placeholder="Nombre..."></div>
@@ -466,6 +466,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 <div class="vz-ov" id="VZ-OV"><div class="vz-card" id="VZ-CARD"></div></div>
 <script>
 var P=[],PG=[],G=[],CI=0,EID=null,RID=null,EPGID=null,EGID=null,FP={p:null,pg:null,g:null};
+var _soloSaldo=true;   // en Clientes solo se muestran los que deben
 var ROL=null;
 // El token lo entrega el servidor al iniciar sesion y viaja en cada
 // peticion. Sin el, el servidor no entrega ni acepta datos.
@@ -713,12 +714,20 @@ ge('B-LG').onclick=function(){FP.g=null;ge('B-SG').classList.remove('on');ge('B-
 ge('B-HOY').onclick=function(){ge('rep-fec').value=hoy();rRep(false);};
 ge('rep-fec').oninput=function(){rRep(false);};
 ge('B-TODOS').onclick=function(){rRep(true);};
+function toggleSoloSaldo(){
+  _soloSaldo=!_soloSaldo;
+  var b=ge('B-SOLOSALDO');
+  if(b){b.textContent=_soloSaldo?'Con saldo':'Todos';if(_soloSaldo)b.classList.add('on');else b.classList.remove('on');}
+  rPre();
+}
 function rPre(){
   var lst=FP.p?P.filter(FP.p):P;
+  // Por defecto solo los que deben: los saldados y renovados estorban en la calle
+  if(_soloSaldo)lst=lst.filter(function(p){return p.est!=='renovado'&&saldo(p)>0;});
   var r=ge('RES-P');
   if(FP.p){r.style.display='block';var tEnt=lst.reduce(function(s,p){return s+p.mon;},0);var tInt=lst.reduce(function(s,p){return s+p.mon*p.int/100;},0);var tSal=lst.reduce(function(s,p){return s+saldo(p);},0);r.innerHTML='<b>'+lst.length+'</b> resultado(s)<br>Total prestamos: <b>'+fmt(tEnt)+'</b> &nbsp;·&nbsp; Total intereses: <b style="color:#8B5CF6">'+fmt(tInt)+'</b><br>Total a cobrar: <b style="color:#F59E0B">'+fmt(tEnt+tInt)+'</b> &nbsp;·&nbsp; Saldo pendiente: <b style="color:#EF4444">'+fmt(tSal)+'</b>';}else r.style.display='none';
   var ct=ge('LIST-pre');
-  if(!lst.length){ct.innerHTML='<div class="em">Sin clientes registrados</div>';return;}
+  if(!lst.length){ct.innerHTML='<div class="em">'+(_soloSaldo?'Ningún cliente con saldo pendiente. Toque "Con saldo" para ver todos.':'Sin clientes registrados')+'</div>';return;}
   ct.innerHTML='<div class="fm-hdr"><span>Cliente</span><span>Pago $</span><span>Total</span><span>Saldo</span><span></span></div>'+
   lst.map(function(p){
     var s=saldo(p);
