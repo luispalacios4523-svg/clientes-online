@@ -24,8 +24,10 @@ body{font-family:Arial,sans-serif;background:#F0F4FF;color:#1E293B;font-size:15p
 .hdr-right{display:flex;align-items:center;gap:8px;}
 .user-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.2);color:#fff;}
 .logout-btn{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;padding:6px 10px;font-family:Arial,sans-serif;}
-.dot{width:10px;height:10px;border-radius:50%;background:#10B981;opacity:0;transition:opacity .3s;}
+.dot{width:11px;height:11px;border-radius:50%;background:#10B981;opacity:0;transition:opacity .3s,background .2s;}
 .dot.on{opacity:1;}
+.dot.pend{background:#F59E0B;}
+.dot.ok{background:#10B981;}
 .tabs{background:#fff;display:flex;overflow-x:auto;border-bottom:2px solid #E2E8F0;padding:0 8px;}
 .tabs::-webkit-scrollbar{display:none;}
 .tab{padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;color:#94A3B8;border-bottom:3px solid transparent;white-space:nowrap;}
@@ -513,7 +515,9 @@ function vl(id){var e=ge(id);return e?e.value:'';}
 function nP(x){return{id:x.id||Date.now(),nom:x.nom||x.nombre||'',ced:x.ced||x.cedula||'',tel:x.tel||x.telefono||'',dir:x.dir||x.direccion||'',mon:parseFloat(x.mon||x.monto)||0,int:parseFloat(x.int||x.interes)||0,fec:x.fec||x.fecha||'',not:x.not||x.nota||'',est:x.est||x.estado||'activo',fp:x.fp||'efectivo'};}
 function nPG(x){return{id:x.id||Date.now(),did:x.did||x.deudorId||0,nom:x.nom||x.nombre||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',est:x.est||x.estado||'pagado',fp:x.fp||x.forma||'efectivo',not:x.not||x.nota||''};}
 function nG(x){return{id:x.id||Date.now(),des:x.des||x.desc||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',cat:x.cat||'',fp:x.fp||'efectivo',not:x.not||x.nota||''};}
-function showSave(){var e=ge('sv');if(e){e.classList.add('on');setTimeout(function(){e.classList.remove('on');},2000);}}
+// Punto amarillo mientras se envia, verde cuando el servidor confirma
+function guardando(){var e=ge('sv');if(e){e.classList.remove('ok');e.classList.add('on','pend');}}
+function showSave(){var e=ge('sv');if(e){e.classList.remove('pend');e.classList.add('on','ok');setTimeout(function(){e.classList.remove('on','ok');},2200);}}
 // _cargaOk solo es true si el servidor respondio de verdad.
 // Mientras sea false NO se guarda nada: asi una carga fallida nunca
 // puede sobrescribir los datos buenos del servidor con listas vacias.
@@ -527,17 +531,18 @@ function save(forzar){
     if(forzar)cuerpo.forzar=true;
     api('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)})
       .then(function(r){
-        if(r.ok){bannerEstado('',null);return;}
+        // El punto verde solo se enciende cuando el servidor confirma
+        if(r.ok){bannerEstado('',null);showSave();return;}
         return r.json().then(function(j){
           if(j&&j.motivo==='menos_registros'){
-            bannerEstado('⚠️ El servidor rechazó el guardado porque llegaron menos registros de los que tiene ('+j.detalle+'). Sus datos en el servidor están intactos. Recargue la página.',null);
+            bannerEstado('⚠️ El servidor rechazó el guardado porque llegaron menos registros de los que tiene ('+j.detalle+'). Sus datos en el servidor están intactos. Recargue la página y vuelva a registrar el último dato.',null);
           }else{
-            bannerEstado('⚠️ No se pudo guardar en el servidor. Recargue la página.',null);
+            bannerEstado('⚠️ No se pudo guardar en el servidor. Recargue la página y vuelva a registrar el último dato.',null);
           }
         });
       })
-      .catch(function(){bannerEstado('⚠️ Se perdió la conexión. El último cambio puede no haberse guardado.',null);});
-    showSave();
+      .catch(function(){bannerEstado('⚠️ Se perdió la conexión. El último dato NO se guardó. Recargue cuando tenga señal y regístrelo de nuevo.',null);});
+    guardando();
   }catch(e){}
 }
 function avisoSinCarga(){
