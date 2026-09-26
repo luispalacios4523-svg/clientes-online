@@ -222,11 +222,14 @@ def load():
         return jsonify({'ok': False, 'motivo': 'no_autorizado'}), 401
     return jsonify({'data': db_get('ap_all_v2')})
 
+CLAVES_LISTA = ('P', 'PG', 'G', 'I')
+
+
 def _cuenta(d):
     """Cuantos registros trae un paquete de datos."""
     if not isinstance(d, dict):
-        return {'P': 0, 'PG': 0, 'G': 0}
-    return {k: len(d.get(k) or []) for k in ('P', 'PG', 'G')}
+        return {k: 0 for k in CLAVES_LISTA}
+    return {k: len(d.get(k) or []) for k in CLAVES_LISTA}
 
 
 def _snapshot(data):
@@ -261,7 +264,7 @@ def save():
         # registros de los que ya hay guardados, se rechaza. Antes esto
         # borraba meses de pagos cuando la carga inicial fallaba.
         if actual and not body.get('forzar'):
-            for k in ('P', 'PG', 'G'):
+            for k in CLAVES_LISTA:
                 if a[k] > 0 and n[k] < a[k]:
                     return jsonify({
                         'ok': False,
