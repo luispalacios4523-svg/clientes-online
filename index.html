@@ -105,6 +105,12 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .tot.i span{color:#10B981;font-size:12px;font-weight:600;}
 .tot.i strong{color:#10B981;font-size:17px;font-weight:800;}
 .pnl.ing{background:#ECFDF5;border:1.5px solid #A7F3D0;}
+/* Aviso flotante para enviar el saldo por WhatsApp */
+#AVISO-WA{position:fixed;left:10px;right:10px;bottom:-120px;z-index:9998;background:#fff;border:2px solid #25D366;border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);transition:bottom .3s;max-width:580px;margin:0 auto;}
+#AVISO-WA.on{bottom:14px;}
+.wa-txt{flex:1;font-size:13px;color:#1E293B;line-height:1.4;min-width:0;}
+.wa-btn{background:#25D366;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;padding:12px 16px;font-family:Arial,sans-serif;white-space:nowrap;}
+.wa-x{background:#F8FAFC;color:#64748B;border:1.5px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:11px 12px;font-family:Arial,sans-serif;}
 .saldo-box{background:#FFFBEB;border:2px solid #F59E0B;border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
 .saldo-box .l{font-size:11px;color:#B45309;font-weight:700;text-transform:uppercase;}
 .saldo-box .v{font-size:26px;font-weight:800;color:#B45309;}
@@ -501,6 +507,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 </div>
 </div></div>
 <div class="vz-ov" id="VZ-OV"><div class="vz-card" id="VZ-CARD"></div></div>
+<div id="AVISO-WA"></div>
 <script>
 var P=[],PG=[],G=[],I=[],CI=0,EID=null,RID=null,EPGID=null,EGID=null,FP={p:null,pg:null,g:null};
 var _soloSaldo=true;   // en Clientes solo se muestran los que deben
@@ -629,6 +636,50 @@ function cuotasPagadas(p){
   return Math.min(p.cuo,pagadoDe(p)/vc);
 }
 // 3 se muestra como "3"; 2.87 como "2,87"
+// ── AVISO POR WHATSAPP ──
+// Arma el enlace wa.me con el mensaje listo; el envio lo confirma el usuario
+function telWA(t){
+  var d=(t||'').replace(/\D/g,'');
+  if(!d)return null;
+  if(d.length===10&&d.charAt(0)==='3')return '57'+d;   // celular colombiano
+  if(d.length===12&&d.indexOf('57')===0)return d;
+  if(d.length>=10)return d;
+  return null;
+}
+function mensajeWA(p,monto){
+  var s=saldo(p),t='Hola '+p.nom+', ';
+  // monto 0 = consulta de saldo, sin abono reciente
+  t+=monto>0?('recibimos su abono de '+fmt(monto)+' del '+hoy()+'.\n\n'):'le compartimos el estado de su credito.\n\n';
+  if(s>0){
+    t+='Saldo pendiente: '+fmt(s);
+    if(p.cuo>0)t+='\nCuotas pagadas: '+fmtCuo(cuotasPagadas(p))+' de '+p.cuo;
+  }else{
+    t+='Su credito queda CANCELADO. Muchas gracias.';
+  }
+  return t;
+}
+function abrirWA(id,monto){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return;
+  var num=telWA(p.tel);
+  if(!num)return alert('Ese cliente no tiene teléfono registrado.');
+  var url='https://wa.me/'+num+'?text='+encodeURIComponent(mensajeWA(p,monto));
+  window.open(url,'_blank');
+  cerrarAviso();
+}
+function cerrarAviso(){var a=ge('AVISO-WA');if(a)a.classList.remove('on');}
+function avisoWA(id,monto){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p||!telWA(p.tel))return;          // sin telefono no se ofrece
+  var a=ge('AVISO-WA');if(!a)return;
+  var s=saldo(p);
+  a.innerHTML='<div class="wa-txt"><b>'+p.nom+'</b><br>Saldo: '+fmt(s)+'</div>'+
+    '<button class="wa-btn" onclick="abrirWA('+id+','+monto+')">📱 Enviar</button>'+
+    '<button class="wa-x" onclick="cerrarAviso()">✕</button>';
+  a.classList.add('on');
+  clearTimeout(window._waT);
+  window._waT=setTimeout(cerrarAviso,15000);
+}
 function fmtCuo(n){
   if(n===null)return '-';
   var r=Math.round(n*100)/100;
@@ -824,6 +875,7 @@ function rPre(){
     PG.push({id:Date.now(),did:id,nom:p.nom,mon:mon,fec:hoy(),est:'pagado',fp:fp,not:''});
     save();
     rAll();
+    avisoWA(id,mon);
   }
   ct.querySelectorAll('.QPG').forEach(function(b){
     b.onclick=function(){registrarPagoFila(parseInt(b.dataset.id));};
@@ -1367,6 +1419,7 @@ function ovFicha(id){
 
   h+='<div class="vz-btns">'+
       (s>0?'<button class="vz-si" onclick="ovAbonarDesdeFicha('+p.id+')">＋ REGISTRAR ABONO</button>':'')+
+      (telWA(p.tel)?'<button class="vz-si" style="background:#25D366;font-size:16px;padding:16px" onclick="abrirWA('+p.id+',0)">📱 Enviar saldo por WhatsApp</button>':'')+
       '<button class="vz-rep" onclick="iniciarVoz()">🎤 Otra búsqueda</button>'+
       '<button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button>'+
     '</div>';
@@ -1515,7 +1568,7 @@ function emAbonar(id){
   var fp=(_vozDato&&_vozDato.forma)||'efectivo';
   PG.push({id:Date.now(),did:id,nom:p.nom,mon:m,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
   _emHechos[id]=m;_emPend=null;
-  save();rAll();
+  save();rAll();avisoWA(id,m);
   emPintar(_emMonto,_emTexto);
   decir('Guardado. '+p.nom+'. Saldo '+Math.round(saldo(p)).toLocaleString('es-CO')+' pesos.');
 }
@@ -1658,6 +1711,7 @@ function vzGuardar(){
     if(!d.cliente)return ovCerrar();
     PG.push({id:Date.now(),did:d.cliente.id,nom:d.cliente.nom,mon:d.monto,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
     msg='✓ Abono guardado: '+d.cliente.nom+' '+fmt(d.monto)+' ('+fp+')';
+    avisoWA(d.cliente.id,d.monto);
     decir('Guardado. '+d.cliente.nom+'. Saldo '+Math.max(0,saldo(d.cliente)).toLocaleString('es-CO')+' pesos.');
   } else if(d.tipo==='renovar'){
     var v=d.cliente;
