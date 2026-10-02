@@ -131,6 +131,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .fm-nom{font-size:14px;font-weight:800;color:#1E3A8A;cursor:pointer;}
 .fm-sub{font-size:11px;color:#94A3B8;font-weight:400;margin-top:2px;}
 .fm-fec{color:#3B82F6;font-weight:700;}
+.fm-cuo{color:#8B5CF6;font-weight:700;}
 .fm-inp{display:flex;gap:3px;align-items:center;}
 .fm-pago-inp{width:72px;font-size:13px;padding:5px 6px;border:1.5px solid #3B82F6;border-radius:6px;font-family:Arial,sans-serif;text-align:right;outline:none;}
 .fm-pago-inp:focus{border-color:#1D4ED8;box-shadow:0 0 0 2px rgba(59,130,246,.2);}
@@ -295,6 +296,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <div class="fg s2"><label>Direccion</label><input type="text" id="p-dir" placeholder="Direccion"></div>
       <div class="fg"><label>Valor ($)</label><input type="number" id="p-mon" placeholder="0"></div>
       <div class="fg"><label>Interes (%/mes)</label><input type="number" id="p-int" placeholder="0" step="0.1"></div>
+      <div class="fg"><label># Cuotas</label><input type="number" id="p-cuo" placeholder="0" min="0" step="1"></div>
       <div class="fg"><label>Fecha</label><input type="date" id="p-fec"></div>
       <div class="fg"><label>Forma entrega</label><select id="p-fp"><option value="efectivo">Efectivo</option><option value="nequi">Nequi</option></select></div>
       <div class="fg s2"><label>Nota</label><input type="text" id="p-not" placeholder="Opcional"></div>
@@ -329,6 +331,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
         <div class="fg s2"><label>Direccion</label><input type="text" id="e-dir"></div>
         <div class="fg"><label>Valor ($)</label><input type="number" id="e-mon"></div>
         <div class="fg"><label>Interes (%)</label><input type="number" id="e-int" step="0.1"></div>
+        <div class="fg"><label># Cuotas</label><input type="number" id="e-cuo" min="0" step="1"></div>
         <div class="fg"><label>Fecha</label><input type="date" id="e-fec"></div>
         <div class="fg"><label>Forma entrega</label><select id="e-fp"><option value="efectivo">Efectivo</option><option value="nequi">Nequi</option></select></div>
         <div class="fg"><label>Nota</label><input type="text" id="e-not"></div>
@@ -459,7 +462,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
       <div><div class="l">Saldo total por cobrar</div><div class="v" id="REP-SALDO">$0</div><div class="n" id="REP-SALDO-N"></div></div>
       <div style="font-size:28px;opacity:.25">📌</div>
     </div>
-    <div class="tw"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th>Saldo</th><th>Forma</th><th>Estado</th></tr></thead><tbody id="TB-rep"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Monto</th><th title="Cuotas pagadas">CP</th><th>Saldo</th><th>Forma</th><th>Estado</th></tr></thead><tbody id="TB-rep"></tbody></table></div>
     <div class="tot c" id="TOT-REP"><span id="TOT-REP-L">Efectivo del dia:</span><strong id="TOT-REP-V"></strong></div>
   </div>
 </div>
@@ -540,7 +543,7 @@ function fmt(n){return '$'+Number(n).toLocaleString('es-CO',{minimumFractionDigi
 function hoy(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function ge(id){return document.getElementById(id);}
 function vl(id){var e=ge(id);return e?e.value:'';}
-function nP(x){return{id:x.id||Date.now(),nom:x.nom||x.nombre||'',ced:x.ced||x.cedula||'',tel:x.tel||x.telefono||'',dir:x.dir||x.direccion||'',mon:parseFloat(x.mon||x.monto)||0,int:parseFloat(x.int||x.interes)||0,fec:x.fec||x.fecha||'',not:x.not||x.nota||'',est:x.est||x.estado||'activo',fp:x.fp||'efectivo'};}
+function nP(x){return{id:x.id||Date.now(),nom:x.nom||x.nombre||'',ced:x.ced||x.cedula||'',tel:x.tel||x.telefono||'',dir:x.dir||x.direccion||'',mon:parseFloat(x.mon||x.monto)||0,int:parseFloat(x.int||x.interes)||0,fec:x.fec||x.fecha||'',not:x.not||x.nota||'',est:x.est||x.estado||'activo',fp:x.fp||'efectivo',cuo:parseInt(x.cuo||x.cuotas)||0};}
 function nPG(x){return{id:x.id||Date.now(),did:x.did||x.deudorId||0,nom:x.nom||x.nombre||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',est:x.est||x.estado||'pagado',fp:x.fp||x.forma||'efectivo',not:x.not||x.nota||''};}
 function nG(x){return{id:x.id||Date.now(),des:x.des||x.desc||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',cat:x.cat||'',fp:x.fp||'efectivo',not:x.not||x.nota||''};}
 function nI(x){return{id:x.id||Date.now(),des:x.des||x.desc||'',mon:parseFloat(x.mon||x.monto)||0,fec:x.fec||x.fecha||'',cat:x.cat||'Otro',fp:x.fp||'efectivo',not:x.not||x.nota||''};}
@@ -615,6 +618,16 @@ function load(){
 window.addEventListener('beforeunload',function(){var hoyStr=new Date().toISOString().slice(0,10);if(localStorage.getItem('cli_ultimo_backup')!==hoyStr&&P.length>0){var datos={P:P,PG:PG,G:G,I:I,CI:CI,fecha:new Date().toISOString(),version:3};var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(datos,null,2));a.download='clientes-backup-'+hoyStr+'.json';a.click();localStorage.setItem('cli_ultimo_backup',hoyStr);}});
 function saldo(p){return Math.max(0,p.mon*(1+p.int/100)-PG.filter(function(x){return x.did===p.id&&x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0));}
 function isAdmin(){return ROL==='admin';}
+// Total a pagar = capital + interes. La cuota es ese total dividido en #cuotas.
+function totalPagar(p){return p.mon*(1+p.int/100);}
+function valorCuota(p){return p.cuo>0?totalPagar(p)/p.cuo:0;}
+function pagadoDe(p){return PG.filter(function(x){return x.did===p.id&&x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0);}
+// Cuotas pagadas: cuantas cuotas completas cubre lo abonado hasta ahora
+function cuotasPagadas(p){
+  var vc=valorCuota(p);
+  if(!vc)return null;
+  return Math.min(p.cuo,Math.floor(pagadoDe(p)/vc));
+}
 ge('B-EXPORT').onclick=function(){if(!isAdmin())return alert('Solo el administrador puede exportar.');var datos={P:P,PG:PG,G:G,I:I,CI:CI,fecha:new Date().toISOString(),version:3};var blob=new Blob([JSON.stringify(datos,null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='clientes-backup-'+hoy()+'.json';a.click();URL.revokeObjectURL(url);alert('Datos exportados correctamente.');};
 ge('B-IMPORT').onclick=function(){if(!isAdmin())return alert('Solo el administrador puede importar.');ge('file-import').click();};
 ge('file-import').onchange=function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var datos=JSON.parse(ev.target.result);if(!datos.P&&!datos.PG&&!datos.G&&!datos.I)return alert('Archivo invalido.');if(!confirm('Esto reemplazara TODOS los datos actuales. Continuar?'))return;if(datos.P)P=datos.P.map(nP);if(datos.PG)PG=datos.PG.map(nPG);if(datos.G)G=datos.G.map(nG);if(datos.I)I=datos.I.map(nI);if(datos.CI!=null){CI=parseFloat(datos.CI)||0;ge('x-CI').value=CI;}save(true);rAll();alert('Datos importados. Clientes:'+P.length+' Pagos:'+PG.length+' Gastos:'+G.length+' Ingresos:'+I.length);}catch(err){alert('Error: '+err.message);}};reader.readAsText(file);e.target.value='';};
@@ -703,11 +716,11 @@ ge('B-CCOB').onclick=function(){
     alert('Contraseña de Cobrador cambiada.');
   });
 };
-ge('B-AP').onclick=function(){var n=vl('p-nom').trim(),m=parseFloat(vl('p-mon')),f=vl('p-fec');if(!n||!m||!f)return alert('Completa nombre, valor y fecha.');P.push(nP({id:Date.now(),nom:n,ced:vl('p-ced').trim(),tel:vl('p-tel').trim(),dir:vl('p-dir').trim(),mon:m,int:parseFloat(vl('p-int'))||0,fec:f,fp:vl('p-fp'),not:vl('p-not').trim(),est:'activo'}));['p-nom','p-ced','p-tel','p-dir','p-mon','p-int','p-not'].forEach(function(x){ge(x).value='';});ge('p-fec').value=hoy();save();rPre();uDS();rRes();};
+ge('B-AP').onclick=function(){var n=vl('p-nom').trim(),m=parseFloat(vl('p-mon')),f=vl('p-fec');if(!n||!m||!f)return alert('Completa nombre, valor y fecha.');P.push(nP({id:Date.now(),nom:n,ced:vl('p-ced').trim(),tel:vl('p-tel').trim(),dir:vl('p-dir').trim(),mon:m,int:parseFloat(vl('p-int'))||0,cuo:parseInt(vl('p-cuo'))||0,fec:f,fp:vl('p-fp'),not:vl('p-not').trim(),est:'activo'}));['p-nom','p-ced','p-tel','p-dir','p-mon','p-int','p-cuo','p-not'].forEach(function(x){ge(x).value='';});ge('p-fec').value=hoy();save();rPre();uDS();rRes();};
 ge('LIST-pre').onclick=function(e){var br=e.target.closest('.BR'),bd=e.target.closest('.BD');if(br){var id=+br.dataset.id,p=P.find(function(x){return x.id===id;});if(!p)return;if(saldo(p)>0)return alert('Solo puedes renovar cuando el saldo es $0.');RID=id;ge('r-nom').value=p.nom;ge('r-mon').value=p.mon;ge('r-int').value=p.int;ge('r-fec').value=hoy();ge('r-not').value='Renovacion';ge('PNL-RN').classList.add('on');ge('PNL-EP').classList.remove('on');ge('PNL-RN').scrollIntoView({behavior:'smooth',block:'nearest'});return;}if(bd){if(!isAdmin())return alert('Solo el administrador puede eliminar.');var id=+bd.dataset.id;if(!confirm('Eliminar este cliente?'))return;P=P.filter(function(x){return x.id!==id;});if(EID===id){EID=null;ge('PNL-EP').classList.remove('on');}save(true);rPre();uDS();rRes();return;}};
-ge('B-GE').onclick=function(){if(!isAdmin())return;var p=P.find(function(x){return x.id===EID;});if(!p)return;var n=vl('e-nom').trim(),m=parseFloat(vl('e-mon')),f=vl('e-fec');if(!n||!m||!f)return alert('Completa nombre, valor y fecha.');p.nom=n;p.ced=vl('e-ced').trim();p.tel=vl('e-tel').trim();p.dir=vl('e-dir').trim();p.mon=m;p.int=parseFloat(vl('e-int'))||0;p.fec=f;p.not=vl('e-not').trim();p.fp=vl('e-fp');PG.forEach(function(x){if(x.did===EID)x.nom=p.nom;});EID=null;ge('PNL-EP').classList.remove('on');save();rPre();uDS();rRes();};
+ge('B-GE').onclick=function(){if(!isAdmin())return;var p=P.find(function(x){return x.id===EID;});if(!p)return;var n=vl('e-nom').trim(),m=parseFloat(vl('e-mon')),f=vl('e-fec');if(!n||!m||!f)return alert('Completa nombre, valor y fecha.');p.nom=n;p.ced=vl('e-ced').trim();p.tel=vl('e-tel').trim();p.dir=vl('e-dir').trim();p.mon=m;p.int=parseFloat(vl('e-int'))||0;p.cuo=parseInt(vl('e-cuo'))||0;p.fec=f;p.not=vl('e-not').trim();p.fp=vl('e-fp');PG.forEach(function(x){if(x.did===EID)x.nom=p.nom;});EID=null;ge('PNL-EP').classList.remove('on');save();rPre();uDS();rRes();};
 ge('B-CE').onclick=function(){EID=null;ge('PNL-EP').classList.remove('on');rPre();};
-ge('B-CR').onclick=function(){var p=P.find(function(x){return x.id===RID;});if(!p)return;var m=parseFloat(vl('r-mon')),f=vl('r-fec');if(!m||!f)return alert('Completa valor y fecha.');p.est='renovado';P.push(nP({id:Date.now(),nom:p.nom,ced:p.ced,tel:p.tel,dir:p.dir,mon:m,int:parseFloat(vl('r-int'))||0,fec:f,fp:vl('r-fp'),not:vl('r-not').trim(),est:'activo'}));RID=null;ge('PNL-RN').classList.remove('on');save();rPre();uDS();rRes();alert('Cliente renovado.');};
+ge('B-CR').onclick=function(){var p=P.find(function(x){return x.id===RID;});if(!p)return;var m=parseFloat(vl('r-mon')),f=vl('r-fec');if(!m||!f)return alert('Completa valor y fecha.');p.est='renovado';P.push(nP({id:Date.now(),nom:p.nom,ced:p.ced,tel:p.tel,dir:p.dir,mon:m,int:parseFloat(vl('r-int'))||0,cuo:p.cuo,fec:f,fp:vl('r-fp'),not:vl('r-not').trim(),est:'activo'}));RID=null;ge('PNL-RN').classList.remove('on');save();rPre();uDS();rRes();alert('Cliente renovado.');};
 ge('B-XR').onclick=function(){RID=null;ge('PNL-RN').classList.remove('on');};
 ge('B-SP').onclick=function(){ge('PNL-SP').classList.toggle('on');};
 function rangoRapidoPre(tipo){
@@ -775,7 +788,9 @@ function rPre(){
     var saldoColor=s>0?'#EF4444':'#10B981';
     return '<div class="fm-row '+cls+'" id="card-'+p.id+'">'+
       '<div class="fm-nom ed-trigger" data-id="'+p.id+'">'+p.nom+
-        '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+' <span class="bdg '+(p.fp||'efectivo')+'">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transf'))+'</span>'+(p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
+        '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+' <span class="bdg '+(p.fp||'efectivo')+'">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transf'))+'</span>'+
+          (p.cuo>0?' <span class="fm-cuo">'+cuotasPagadas(p)+'/'+p.cuo+' cuotas · '+fmt(valorCuota(p))+' c/u</span>':'')+
+          (p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
       '</div>'+
       '<div class="fm-inp">'+
         '<input type="number" class="fm-pago-inp" data-id="'+p.id+'" placeholder="0" min="1"'+(s===0?' disabled':'')+'/>'+
@@ -812,7 +827,7 @@ function rPre(){
       if(e.key==='Enter'){e.preventDefault();registrarPagoFila(parseInt(inp.dataset.id));}
     };
   });
-  ct.querySelectorAll('.ed-trigger').forEach(function(b){b.onclick=function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='BUTTON')return;if(!isAdmin())return;var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;EID=id;ge('e-nom').value=p.nom;ge('e-ced').value=p.ced||'';ge('e-tel').value=p.tel||'';ge('e-dir').value=p.dir||'';ge('e-mon').value=p.mon;ge('e-int').value=p.int;ge('e-fec').value=p.fec;ge('e-fp').value=p.fp||'efectivo';ge('e-not').value=p.not||'';ge('PNL-EP').classList.add('on');window.scrollTo(0,ge('PNL-EP').offsetTop-60);};});
+  ct.querySelectorAll('.ed-trigger').forEach(function(b){b.onclick=function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='BUTTON')return;if(!isAdmin())return;var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;EID=id;ge('e-nom').value=p.nom;ge('e-ced').value=p.ced||'';ge('e-tel').value=p.tel||'';ge('e-dir').value=p.dir||'';ge('e-mon').value=p.mon;ge('e-int').value=p.int;ge('e-cuo').value=p.cuo||'';ge('e-fec').value=p.fec;ge('e-fp').value=p.fp||'efectivo';ge('e-not').value=p.not||'';ge('PNL-EP').classList.add('on');window.scrollTo(0,ge('PNL-EP').offsetTop-60);};});
   ct.querySelectorAll('.BR').forEach(function(b){b.onclick=function(){var id=parseInt(b.dataset.id);var p=P.find(function(x){return x.id===id;});if(!p)return;RID=id;ge('r-nom').value=p.nom;ge('r-mon').value='';ge('r-int').value=p.int;ge('r-fec').value=hoy();ge('r-not').value='';ge('PNL-RN').classList.add('on');};});
   ct.querySelectorAll('.BD').forEach(function(b){b.onclick=function(){if(!isAdmin())return;var id=parseInt(b.dataset.id);if(!confirm('¿Eliminar cliente?'))return;P=P.filter(function(x){return x.id!==id;});PG=PG.filter(function(x){return x.did!==id;});save(true);rAll();};});
 }
@@ -834,16 +849,18 @@ function rRep(todos){
     (act.length-conSaldo.length)+' saldado'+((act.length-conSaldo.length)===1?'':'s');
 
   if(!lst.length){
-    tb.innerHTML='<tr><td colspan="6" class="em">'+(todos?'Sin pagos registrados':'Sin pagos para esta fecha')+'</td></tr>';
+    tb.innerHTML='<tr><td colspan="7" class="em">'+(todos?'Sin pagos registrados':'Sin pagos para esta fecha')+'</td></tr>';
     td.style.display='none';return;
   }
   tb.innerHTML=lst.map(function(x){
     var fp=x.fp||'efectivo';
     var cli=P.find(function(p){return p.id===x.did;});
     var s=cli?saldo(cli):null;
+    var cp=cli?cuotasPagadas(cli):null;
     return '<tr><td>'+x.fec+'</td>'+
       '<td style="font-weight:700">'+x.nom+'</td>'+
       '<td style="color:#10B981;font-weight:700">'+fmt(x.mon)+'</td>'+
+      '<td style="font-weight:700;color:#8B5CF6;white-space:nowrap">'+(cp===null?'-':cp+'/'+cli.cuo)+'</td>'+
       '<td style="font-weight:700;color:'+(s===0?'#10B981':'#EF4444')+'">'+(s===null?'-':fmt(s))+'</td>'+
       '<td><span class="bdg '+fp+'">'+(fp==='efectivo'?'Efe':'Neq')+'</span></td>'+
       '<td><span class="bdg '+x.est+'">'+x.est.charAt(0).toUpperCase()+x.est.slice(1)+'</span></td></tr>';
@@ -1327,6 +1344,7 @@ function ovFicha(id){
       '<div class="fila"><span class="k">Interés '+p.int+'%</span><span class="v">'+fmt(interes)+'</span></div>'+
       '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
       '<div class="fila"><span class="k">Ya pagó</span><span class="v" style="color:#10B981">'+fmt(pagado)+'</span></div>'+
+      (p.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+cuotasPagadas(p)+' de '+p.cuo+' · '+fmt(valorCuota(p))+' c/u</span></div>':'')+
       '<div class="fila"><span class="k">Fecha préstamo</span><span class="v">'+(p.fec||'-')+'</span></div>'+
       '<div class="fila"><span class="k">Entregado en</span><span class="v">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transferencia'))+'</span></div>'+
     '</div>';
@@ -1670,13 +1688,14 @@ var PW_PASOS=[
   {k:'ced',preg:'¿Cédula?',ayuda:'Puede saltarlo.',tipo:'digitos',req:false},
   {k:'dir',preg:'¿Dirección?',ayuda:'Mejor escríbala: las direcciones salen mal por voz.',tipo:'texto',req:false},
   {k:'mon',preg:'¿Valor del préstamo?',ayuda:'Diga por ejemplo "quinientos mil".',tipo:'plata',req:true},
-  {k:'int',preg:'¿Interés mensual?',ayuda:'Solo el número. Ej: "veinte" para 20%.',tipo:'pct',req:false}
+  {k:'int',preg:'¿Interés mensual?',ayuda:'Solo el número. Ej: "veinte" para 20%.',tipo:'pct',req:false},
+  {k:'cuo',preg:'¿En cuántas cuotas?',ayuda:'Solo el número. Puede saltarlo.',tipo:'pct',req:false}
 ];
 var _pw=null,_pwRec=null;
 
 function pwIniciar(){
   if(HF)hfParar();
-  _pw={i:0,d:{nom:'',tel:'',ced:'',dir:'',mon:0,int:0,fp:'efectivo',fec:hoy()}};
+  _pw={i:0,d:{nom:'',tel:'',ced:'',dir:'',mon:0,int:0,cuo:0,fp:'efectivo',fec:hoy()}};
   pwPaso();
 }
 function pwSalir(){
@@ -1774,7 +1793,7 @@ function pwResumen(){
       (d.tel?'<div class="fila"><span class="k">Teléfono</span><span class="v">'+d.tel+'</span></div>':'')+
       (d.ced?'<div class="fila"><span class="k">Cédula</span><span class="v">'+d.ced+'</span></div>':'')+
       (d.dir?'<div class="fila"><span class="k">Dirección</span><span class="v">'+d.dir+'</span></div>':'')+
-      '<div class="fila"><span class="k">Interés</span><span class="v">'+d.int+'% = '+fmt(interes)+'</span></div>'+
+      '<div class="fila"><span class="k">Interés</span><span class="v">'+d.int+'% = '+fmt(interes)+'</span></div>'+(d.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+d.cuo+' de '+fmt(total/d.cuo)+'</span></div>':'')+
       '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
       '<div class="fila"><span class="k">Fecha</span><span class="v">'+d.fec+'</span></div>'+
     '</div>'+
@@ -1794,7 +1813,7 @@ function pwForma(f){_pw.d.fp=f;pwResumen();}
 function pwGuardar(){
   var d=_pw.d;
   if(!d.nom||!d.mon)return alert('Faltan datos.');
-  P.push(nP({id:Date.now(),nom:d.nom,ced:d.ced,tel:d.tel,dir:d.dir,mon:d.mon,int:d.int,fec:d.fec,fp:d.fp,not:'[voz guiada]',est:'activo'}));
+  P.push(nP({id:Date.now(),nom:d.nom,ced:d.ced,tel:d.tel,dir:d.dir,mon:d.mon,int:d.int,cuo:d.cuo,fec:d.fec,fp:d.fp,not:'[voz guiada]',est:'activo'}));
   save();rAll();
   var msg='✓ Préstamo creado: '+d.nom+' '+fmt(d.mon);
   pwSalir();
