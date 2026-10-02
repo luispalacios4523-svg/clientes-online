@@ -110,6 +110,7 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 #AVISO-WA.on{bottom:14px;}
 .wa-txt{flex:1;font-size:13px;color:#1E293B;line-height:1.4;min-width:0;}
 .wa-btn{background:#25D366;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;padding:12px 16px;font-family:Arial,sans-serif;white-space:nowrap;}
+.wa-btn2{background:#fff;color:#25D366;border:2px solid #25D366;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;padding:11px 12px;font-family:Arial,sans-serif;white-space:nowrap;}
 .wa-x{background:#F8FAFC;color:#64748B;border:1.5px solid #E2E8F0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;padding:11px 12px;font-family:Arial,sans-serif;}
 .saldo-box{background:#FFFBEB;border:2px solid #F59E0B;border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
 .saldo-box .l{font-size:11px;color:#B45309;font-weight:700;text-transform:uppercase;}
@@ -668,6 +669,88 @@ function abrirWA(id,monto){
   window.open(url,'_blank');
   cerrarAviso();
 }
+// ── COMPROBANTE EN IMAGEN ──
+// Se dibuja en un canvas y se comparte como PNG: el usuario no puede
+// alterar las cifras como si haria con un texto.
+function dibujarComprobante(p,monto){
+  var W=820,H=1080,c=document.createElement('canvas');
+  c.width=W;c.height=H;
+  var x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  // Cabecera
+  x.fillStyle='#1E3A8A';x.fillRect(0,0,W,140);
+  x.fillStyle='#fff';x.font='bold 42px Arial';x.textAlign='center';
+  x.fillText('COMPROBANTE DE PAGO',W/2,68);
+  x.font='24px Arial';x.fillStyle='#BFDBFE';
+  x.fillText(new Date().toLocaleString('es-CO'),W/2,110);
+
+  var y=210;
+  x.textAlign='left';
+  x.fillStyle='#64748B';x.font='bold 22px Arial';
+  x.fillText('CLIENTE',60,y);
+  x.fillStyle='#1E293B';x.font='bold 40px Arial';
+  x.fillText(p.nom.toUpperCase(),60,y+50);
+  y+=120;
+
+  function fila(et,val,color,grande){
+    x.fillStyle='#64748B';x.font='bold 21px Arial';
+    x.fillText(et,60,y);
+    x.fillStyle=color||'#1E293B';
+    x.font='bold '+(grande?42:30)+'px Arial';
+    x.textAlign='right';x.fillText(val,W-60,y+(grande?6:2));
+    x.textAlign='left';
+    y+=grande?78:56;
+    x.strokeStyle='#E2E8F0';x.lineWidth=2;
+    x.beginPath();x.moveTo(60,y-24);x.lineTo(W-60,y-24);x.stroke();
+  }
+
+  if(monto>0)fila('ABONO RECIBIDO',fmt(monto),'#10B981',true);
+  fila('Prestamo',fmt(p.mon),'#1E293B');
+  fila('Interes '+p.int+'%',fmt(p.mon*p.int/100),'#8B5CF6');
+  fila('Total a pagar',fmt(totalPagar(p)),'#F59E0B');
+  fila('Total abonado',fmt(pagadoDe(p)),'#10B981');
+  if(p.cuo>0)fila('Cuotas pagadas',fmtCuo(cuotasPagadas(p))+' de '+p.cuo,'#8B5CF6');
+
+  // Saldo destacado
+  var s=saldo(p);
+  y+=26;
+  x.fillStyle=s>0?'#FEF2F2':'#ECFDF5';
+  x.fillRect(60,y,W-120,130);
+  x.strokeStyle=s>0?'#EF4444':'#10B981';x.lineWidth=4;
+  x.strokeRect(60,y,W-120,130);
+  x.fillStyle=s>0?'#EF4444':'#10B981';
+  x.font='bold 24px Arial';x.textAlign='center';
+  x.fillText(s>0?'SALDO PENDIENTE':'CREDITO CANCELADO',W/2,y+46);
+  x.font='bold 56px Arial';
+  x.fillText(s>0?fmt(s):'$0',W/2,y+106);
+
+  // Pie
+  x.fillStyle='#94A3B8';x.font='19px Arial';
+  x.fillText('Documento generado automaticamente por el sistema',W/2,H-70);
+  x.fillText('No requiere firma',W/2,H-42);
+  return c;
+}
+function compartirComprobante(id,monto){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return;
+  var c=dibujarComprobante(p,monto);
+  c.toBlob(function(blob){
+    if(!blob)return alert('No se pudo generar la imagen.');
+    var nombre='saldo-'+p.nom.replace(/[^a-zA-Z0-9]/g,'-')+'-'+hoy()+'.png';
+    var file=new File([blob],nombre,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'Comprobante '+p.nom})
+        .then(cerrarAviso)
+        .catch(function(){});
+    }else{
+      // Sin menu de compartir (PC): se descarga para adjuntarla a mano
+      var u=URL.createObjectURL(blob);
+      var a=document.createElement('a');a.href=u;a.download=nombre;a.click();
+      URL.revokeObjectURL(u);
+      alert('Imagen descargada. Adjúntela en WhatsApp.\n\n(El menú de compartir solo funciona en el celular.)');
+    }
+  },'image/png');
+}
 function cerrarAviso(){var a=ge('AVISO-WA');if(a)a.classList.remove('on');}
 function avisoWA(id,monto){
   var p=P.find(function(x){return x.id===id;});
@@ -676,9 +759,10 @@ function avisoWA(id,monto){
   var s=saldo(p),tiene=telWA(p.tel);
   a.innerHTML='<div class="wa-txt"><b>'+p.nom+'</b><br>Saldo: '+fmt(s)+
       (tiene?'':'<br><span style="color:#B45309;font-size:11px">Sin teléfono registrado</span>')+'</div>'+
+    '<button class="wa-btn" onclick="compartirComprobante('+id+','+monto+')">🧾 Comprobante</button>'+
     (tiene
-      ? '<button class="wa-btn" onclick="abrirWA('+id+','+monto+')">📱 Enviar</button>'
-      : '<button class="wa-btn" style="background:#F59E0B" onclick="pedirTel('+id+','+monto+')">📱 Agregar nº</button>')+
+      ? '<button class="wa-btn2" onclick="abrirWA('+id+','+monto+')">💬</button>'
+      : '<button class="wa-btn2" style="border-color:#F59E0B;color:#B45309" onclick="pedirTel('+id+','+monto+')">＋nº</button>')+
     '<button class="wa-x" onclick="cerrarAviso()">✕</button>';
   a.classList.add('on');
   clearTimeout(window._waT);
@@ -874,7 +958,7 @@ function rPre(){
       '<div class="fm-val">'+fmt(totPagar)+'</div>'+
       '<div class="fm-sal" style="color:'+saldoColor+';font-weight:800">'+fmt(s)+'</div>'+
       '<div class="fm-btns">'+
-        '<button class="fm-wa" onclick="'+(telWA(p.tel)?'abrirWA('+p.id+',0)':'pedirTel('+p.id+',0)')+'" title="'+(telWA(p.tel)?'Enviar saldo por WhatsApp':'Agregar WhatsApp')+'">'+(telWA(p.tel)?'📱':'📵')+'</button>'+
+        '<button class="fm-wa" onclick="compartirComprobante('+p.id+',0)" title="Enviar comprobante en imagen">🧾</button>'+
         (isAdmin()?'<button class="BD fm-del" data-id="'+p.id+'" title="Eliminar">✕</button>':'')+
         // Solo aparece cuando de verdad se puede renovar (saldo en cero)
         (s===0&&p.est!=='renovado'?'<button class="BR fm-ren" data-id="'+p.id+'" title="Renovar este cliente">↺</button>':'')+
@@ -1437,9 +1521,7 @@ function ovFicha(id){
 
   h+='<div class="vz-btns">'+
       (s>0?'<button class="vz-si" onclick="ovAbonarDesdeFicha('+p.id+')">＋ REGISTRAR ABONO</button>':'')+
-      (telWA(p.tel)
-        ?'<button class="vz-si" style="background:#25D366;font-size:16px;padding:16px" onclick="abrirWA('+p.id+',0)">📱 Enviar saldo por WhatsApp</button>'
-        :'<button class="vz-si" style="background:#F59E0B;font-size:15px;padding:16px" onclick="pedirTel('+p.id+',0)">📱 Agregar WhatsApp y enviar</button>')+
+      '<button class="vz-si" style="background:#25D366;font-size:16px;padding:16px" onclick="compartirComprobante('+p.id+',0)">🧾 Enviar comprobante (imagen)</button>'+
       '<button class="vz-rep" onclick="iniciarVoz()">🎤 Otra búsqueda</button>'+
       '<button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button>'+
     '</div>';
