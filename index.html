@@ -730,18 +730,29 @@ function dibujarComprobante(p,monto){
   x.fillText('No requiere firma',W/2,H-42);
   return c;
 }
-function compartirComprobante(id,monto){
+// auto = true cuando el intento es automatico: ahi no molesta con alertas
+// y devuelve false si el navegador no permite compartir sin un toque.
+function compartirComprobante(id,monto,auto){
   var p=P.find(function(x){return x.id===id;});
-  if(!p)return;
+  if(!p)return false;
+  var puede=!!(navigator.canShare&&navigator.share);
+  if(auto&&!puede)return false;
   var c=dibujarComprobante(p,monto);
   c.toBlob(function(blob){
-    if(!blob)return alert('No se pudo generar la imagen.');
+    if(!blob){if(!auto)alert('No se pudo generar la imagen.');return;}
     var nombre='saldo-'+p.nom.replace(/[^a-zA-Z0-9]/g,'-')+'-'+hoy()+'.png';
     var file=new File([blob],nombre,{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       navigator.share({files:[file],title:'Comprobante '+p.nom})
-        .then(cerrarAviso)
-        .catch(function(){});
+        .then(function(){
+          cerrarAviso();
+          var e=ge('VZ-ENV-EST');if(e)e.innerHTML='<b style="color:#10B981">✓ Comprobante enviado</b>';
+        })
+        .catch(function(){
+          // Bloqueado por falta de toque, o el usuario cancelo el envio
+          var e=ge('VZ-ENV-EST');
+          if(e)e.innerHTML='<b style="color:#B45309">Toque el botón verde para enviar</b>';
+        });
     }else{
       // Sin menu de compartir (PC): se descarga para adjuntarla a mano
       var u=URL.createObjectURL(blob);
@@ -1834,10 +1845,44 @@ function vzGuardar(){
     decir('Préstamo guardado.');
   }
   save();rAll();
+  // En un pago se pasa directo al comprobante en vez de cerrar
+  if(d.tipo==='pago'&&d.cliente){
+    var cid=d.cliente.id,cmon=d.monto;
+    _vozDato=null;_vzCands=[];
+    _flash(msg);
+    return ovEnviarComprobante(cid,cmon);
+  }
   ge('VZ-OV').classList.remove('on');
   _vozDato=null;_vzCands=[];
   _flash(msg);
   if(HF)hfArrancar();
+}
+
+// Pantalla posterior al pago: intenta abrir el menu de compartir de una vez.
+// Si el navegador lo bloquea (pasa cuando se confirmo por voz, sin toque),
+// queda el boton grande para tocarlo.
+function ovEnviarComprobante(id,monto){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return ovCerrar();
+  var s=saldo(p);
+  ovMostrar('<div class="vz-paso">✓ Abono guardado</div>'+
+    '<div class="vz-cli">'+p.nom+'</div>'+
+    '<div class="vz-mon">'+fmt(monto)+'</div>'+
+    '<div class="vz-saldos"><div><div class="l">Saldo ahora</div>'+
+      '<div class="v" style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</div></div></div>'+
+    '<div id="VZ-ENV-EST" style="font-size:13px;color:#64748B;margin-bottom:12px">Abriendo WhatsApp…</div>'+
+    '<div class="vz-btns">'+
+      '<button class="vz-si" style="background:#25D366" onclick="compartirComprobante('+id+','+monto+')">🧾 ENVIAR COMPROBANTE</button>'+
+      '<button class="vz-rep" onclick="iniciarVoz()">🎤 Siguiente</button>'+
+      '<button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button>'+
+    '</div>');
+  // Intento automatico
+  var ok=compartirComprobante(id,monto,true);
+  if(!ok){
+    var e=ge('VZ-ENV-EST');
+    if(e)e.innerHTML='<b style="color:#B45309">Toque el botón verde para enviar</b>';
+    decir('Guardado. Toque enviar comprobante.');
+  }
 }
 function confirmarVoz(){vzGuardar();}
 function cancelarVoz(){ovCerrar();}
