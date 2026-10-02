@@ -622,11 +622,17 @@ function isAdmin(){return ROL==='admin';}
 function totalPagar(p){return p.mon*(1+p.int/100);}
 function valorCuota(p){return p.cuo>0?totalPagar(p)/p.cuo:0;}
 function pagadoDe(p){return PG.filter(function(x){return x.did===p.id&&x.est==='pagado';}).reduce(function(s,x){return s+x.mon;},0);}
-// Cuotas pagadas: cuantas cuotas completas cubre lo abonado hasta ahora
+// Cuotas pagadas: el valor real, con decimales (ej: 2,87 de 10)
 function cuotasPagadas(p){
   var vc=valorCuota(p);
   if(!vc)return null;
-  return Math.min(p.cuo,Math.floor(pagadoDe(p)/vc));
+  return Math.min(p.cuo,pagadoDe(p)/vc);
+}
+// 3 se muestra como "3"; 2.87 como "2,87"
+function fmtCuo(n){
+  if(n===null)return '-';
+  var r=Math.round(n*100)/100;
+  return r%1===0?String(r):r.toFixed(2).replace('.',',');
 }
 ge('B-EXPORT').onclick=function(){if(!isAdmin())return alert('Solo el administrador puede exportar.');var datos={P:P,PG:PG,G:G,I:I,CI:CI,fecha:new Date().toISOString(),version:3};var blob=new Blob([JSON.stringify(datos,null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='clientes-backup-'+hoy()+'.json';a.click();URL.revokeObjectURL(url);alert('Datos exportados correctamente.');};
 ge('B-IMPORT').onclick=function(){if(!isAdmin())return alert('Solo el administrador puede importar.');ge('file-import').click();};
@@ -789,7 +795,7 @@ function rPre(){
     return '<div class="fm-row '+cls+'" id="card-'+p.id+'">'+
       '<div class="fm-nom ed-trigger" data-id="'+p.id+'">'+p.nom+
         '<div class="fm-sub">'+(p.fec?'<span class="fm-fec">📅 '+p.fec+'</span>':'')+' <span class="bdg '+(p.fp||'efectivo')+'">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transf'))+'</span>'+
-          (p.cuo>0?' <span class="fm-cuo">'+cuotasPagadas(p)+'/'+p.cuo+' cuotas · '+fmt(valorCuota(p))+' c/u</span>':'')+
+          (p.cuo>0?' <span class="fm-cuo">'+fmtCuo(cuotasPagadas(p))+'/'+p.cuo+' cuotas · '+fmt(valorCuota(p))+' c/u</span>':'')+
           (p.dir?' · '+p.dir:'')+(p.tel?' · '+p.tel:'')+'</div>'+
       '</div>'+
       '<div class="fm-inp">'+
@@ -860,7 +866,7 @@ function rRep(todos){
     return '<tr><td>'+x.fec+'</td>'+
       '<td style="font-weight:700">'+x.nom+'</td>'+
       '<td style="color:#10B981;font-weight:700">'+fmt(x.mon)+'</td>'+
-      '<td style="font-weight:700;color:#8B5CF6;white-space:nowrap">'+(cp===null?'-':cp+'/'+cli.cuo)+'</td>'+
+      '<td style="font-weight:700;color:#8B5CF6;white-space:nowrap">'+(cp===null?'-':fmtCuo(cp)+'/'+cli.cuo)+'</td>'+
       '<td style="font-weight:700;color:'+(s===0?'#10B981':'#EF4444')+'">'+(s===null?'-':fmt(s))+'</td>'+
       '<td><span class="bdg '+fp+'">'+(fp==='efectivo'?'Efe':'Neq')+'</span></td>'+
       '<td><span class="bdg '+x.est+'">'+x.est.charAt(0).toUpperCase()+x.est.slice(1)+'</span></td></tr>';
@@ -1344,7 +1350,7 @@ function ovFicha(id){
       '<div class="fila"><span class="k">Interés '+p.int+'%</span><span class="v">'+fmt(interes)+'</span></div>'+
       '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
       '<div class="fila"><span class="k">Ya pagó</span><span class="v" style="color:#10B981">'+fmt(pagado)+'</span></div>'+
-      (p.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+cuotasPagadas(p)+' de '+p.cuo+' · '+fmt(valorCuota(p))+' c/u</span></div>':'')+
+      (p.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+fmtCuo(cuotasPagadas(p))+' de '+p.cuo+' · '+fmt(valorCuota(p))+' c/u</span></div>':'')+
       '<div class="fila"><span class="k">Fecha préstamo</span><span class="v">'+(p.fec||'-')+'</span></div>'+
       '<div class="fila"><span class="k">Entregado en</span><span class="v">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transferencia'))+'</span></div>'+
     '</div>';
