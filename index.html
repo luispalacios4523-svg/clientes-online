@@ -194,6 +194,9 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .em-btn{background:#10B981;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;padding:12px 16px;font-family:Arial,sans-serif;white-space:nowrap;}
 .em-btn:hover{background:#059669;}
 .em-ok{font-size:15px;font-weight:800;color:#10B981;padding:6px 0;}
+.em-wa{background:#25D366;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;padding:11px;font-family:Arial,sans-serif;width:100%;margin-top:4px;}
+.em-env{font-size:13px;font-weight:700;color:#059669;padding:6px 0;}
+.em-falta{background:#FFFBEB;border:1.5px solid #F59E0B;color:#92400E;border-radius:10px;padding:9px;font-size:13px;font-weight:700;margin-top:12px;}
 .em-fila.pend{background:#FFFBEB;border-color:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,.2);}
 .em-pend{font-size:14px;color:#92400E;font-weight:700;margin-bottom:8px;}
 .em-btn.grande{font-size:18px;padding:14px 22px;}
@@ -732,7 +735,7 @@ function dibujarComprobante(p,monto){
 }
 // auto = true cuando el intento es automatico: ahi no molesta con alertas
 // y devuelve false si el navegador no permite compartir sin un toque.
-function compartirComprobante(id,monto,auto){
+function compartirComprobante(id,monto,auto,alEnviar){
   var p=P.find(function(x){return x.id===id;});
   if(!p)return false;
   var puede=!!(navigator.canShare&&navigator.share);
@@ -747,6 +750,7 @@ function compartirComprobante(id,monto,auto){
         .then(function(){
           cerrarAviso();
           var e=ge('VZ-ENV-EST');if(e)e.innerHTML='<b style="color:#10B981">✓ Comprobante enviado</b>';
+          if(alEnviar)alEnviar();
         })
         .catch(function(){
           // Bloqueado por falta de toque, o el usuario cancelo el envio
@@ -758,6 +762,7 @@ function compartirComprobante(id,monto,auto){
       var u=URL.createObjectURL(blob);
       var a=document.createElement('a');a.href=u;a.download=nombre;a.click();
       URL.revokeObjectURL(u);
+      if(alEnviar)alEnviar();
       alert('Imagen descargada. Adjúntela en WhatsApp.\n\n(El menú de compartir solo funciona en el celular.)');
     }
   },'image/png');
@@ -1229,7 +1234,7 @@ function decir(txt){
 }
 function ovMostrar(html){ge('VZ-CARD').innerHTML=html;ge('VZ-OV').classList.add('on');}
 function ovCerrar(){
-  ge('VZ-OV').classList.remove('on');_vozDato=null;_vzCands=[];_emCands=[];_emHechos={};
+  ge('VZ-OV').classList.remove('on');_vozDato=null;_vzCands=[];_emCands=[];_emHechos={};_emEnviados={};
   try{speechSynthesis.cancel();}catch(e){}
   _hablando=false;
   if(HF)hfArrancar();
@@ -1563,9 +1568,16 @@ function ovError(msg,texto){
 
 // Varias cuentas con nombre parecido: se pueden abonar TODAS aqui mismo,
 // cada una con su propio monto, sin repetir el comando de voz.
-var _emCands=[],_emHechos={},_emPend=null,_emMonto=0,_emTexto='';
+var _emCands=[],_emHechos={},_emEnviados={},_emPend=null,_emMonto=0,_emTexto='';
+// Cada cuenta abonada manda su propio comprobante desde esta misma pantalla
+function emEnviarComp(id){
+  compartirComprobante(id,_emHechos[id]||0,false,function(){
+    _emEnviados[id]=1;
+    emPintar(_emMonto,_emTexto);
+  });
+}
 function ovElegir(cands,monto,texto){
-  _emCands=cands;_emHechos={};_emPend=null;_emMonto=monto;_emTexto=texto;
+  _emCands=cands;_emHechos={};_emEnviados={};_emPend=null;_emMonto=monto;_emTexto=texto;
   _vzCands=cands;_vzModo='multi';
   emPintar(monto,texto);
   decir('Encontré '+cands.length+' cuentas. Diga el número y el monto. Por ejemplo: dos, veinte mil.');
@@ -1651,7 +1663,10 @@ function emPintar(monto,texto){
       '<div class="em-cab"><span class="num">'+(i+1)+'</span><span class="em-nom">'+c.p.nom+'</span></div>'+
       '<div class="em-dat">Saldo: <b style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</b>'+(c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div>'+
       (hecho
-        ? '<div class="em-ok">✓ Abonado '+fmt(hecho)+'</div>'
+        ? '<div class="em-ok">✓ Abonado '+fmt(hecho)+'</div>'+
+          (_emEnviados[c.p.id]
+            ? '<div class="em-env">✓ Comprobante enviado</div>'
+            : '<button class="em-wa" onclick="emEnviarComp('+c.p.id+')">🧾 Enviar comprobante</button>')
         : (pend
           ? '<div class="em-pend">Va a abonar <b>'+fmt(_emPend.monto)+'</b>'+(HF?' — diga <b>"SÍ"</b>':'')+'</div>'+
             '<div class="em-acc"><input type="number" class="em-inp" id="EM-'+c.p.id+'" value="'+_emPend.monto+'" min="1"><button class="em-btn grande" onclick="emAbonar('+c.p.id+')">✓ SÍ</button></div>'
@@ -1659,6 +1674,8 @@ function emPintar(monto,texto){
     '</div>';
   }).join('');
   var n=0;for(var k in _emHechos)n++;
+  var ne=0;for(var k2 in _emEnviados)ne++;
+  if(n&&ne<n)h+='<div class="em-falta">Faltan '+(n-ne)+' comprobante'+((n-ne)>1?'s':'')+' por enviar</div>';
   h+='<div class="vz-btns" style="margin-top:14px">'+
       (n?'<button class="vz-si" onclick="ovCerrar()">✓ TERMINAR ('+n+' abono'+(n>1?'s':'')+')</button>':'')+
       '<button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button>'+
@@ -1681,7 +1698,7 @@ function emAbonar(id){
   var fp=(_vozDato&&_vozDato.forma)||'efectivo';
   PG.push({id:Date.now(),did:id,nom:p.nom,mon:m,fec:hoy(),est:'pagado',fp:fp,not:'[voz]'});
   _emHechos[id]=m;_emPend=null;
-  save();rAll();avisoWA(id,m);
+  save();rAll();
   emPintar(_emMonto,_emTexto);
   decir('Guardado. '+p.nom+'. Saldo '+Math.round(saldo(p)).toLocaleString('es-CO')+' pesos.');
 }
