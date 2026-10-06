@@ -1569,6 +1569,7 @@ function ovListaBusqueda(cands,texto){
       return '<button class="vz-cand" onclick="ovFicha('+c.p.id+')">'+
         '<span class="num">'+(i+1)+'</span><span class="n">'+c.p.nom+'</span>'+
         '<div class="d">'+(sal?'<b style="color:#10B981">Saldado</b>':'Saldo: <b style="color:#EF4444">'+fmt(s)+'</b>')+
+        (c.p.cuo>0?' · <b style="color:#8B5CF6">'+fmtCuo(cuotasPagadas(c.p))+'/'+c.p.cuo+'</b> cuotas':'')+
         (c.p.fec?' · 📅 '+c.p.fec:'')+'</div></button>';
     }).join('')+
     '<div class="vz-btns" style="margin-top:12px"><button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button><button class="vz-no" onclick="ovCerrar()">✕ Cerrar</button></div>';
@@ -1739,7 +1740,9 @@ function emPintar(monto,texto){
     var pend=_emPend&&_emPend.id===c.p.id;
     return '<div class="em-fila'+(hecho?' listo':'')+(pend?' pend':'')+'">'+
       '<div class="em-cab"><span class="num">'+(i+1)+'</span><span class="em-nom">'+c.p.nom+'</span></div>'+
-      '<div class="em-dat">Saldo: <b style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</b>'+(c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div>'+
+      '<div class="em-dat">Saldo: <b style="color:'+(s>0?'#EF4444':'#10B981')+'">'+fmt(s)+'</b>'+
+        (c.p.cuo>0?' · <b style="color:#8B5CF6">'+fmtCuo(cuotasPagadas(c.p))+'/'+c.p.cuo+'</b> cuotas':'')+
+        (c.p.fec?' · 📅 '+c.p.fec:'')+(c.p.dir?' · '+c.p.dir:'')+'</div>'+
       (hecho
         ? '<div class="em-ok">✓ Abonado '+fmt(hecho)+'</div>'+
           (_emEnviados[c.p.id]
