@@ -659,7 +659,7 @@ function mensajeWA(p,monto){
   t+=monto>0?('recibimos su abono de '+fmt(monto)+' del '+hoy()+'.\n\n'):'le compartimos el estado de su credito.\n\n';
   if(s>0){
     t+='Saldo pendiente: '+fmt(s);
-    if(p.cuo>0)t+='\nCuotas pagadas: '+fmtCuo(cuotasPagadas(p))+' de '+p.cuo;
+    if(p.cuo>0)t+='\nCuotas pagadas: '+fmtCuo(cuotasPagadas(p))+'/'+p.cuo;
   }else{
     t+='Su credito queda CANCELADO. Muchas gracias.';
   }
@@ -714,7 +714,7 @@ function dibujarComprobante(p,monto){
   fila('Interes '+p.int+'%',fmt(p.mon*p.int/100),'#8B5CF6');
   fila('Total a pagar',fmt(totalPagar(p)),'#F59E0B');
   fila('Total abonado',fmt(pagadoDe(p)),'#10B981');
-  if(p.cuo>0)fila('Cuotas pagadas',fmtCuo(cuotasPagadas(p))+' de '+p.cuo,'#8B5CF6');
+  if(p.cuo>0)fila('Cuotas pagadas',fmtCuo(cuotasPagadas(p))+'/'+p.cuo,'#8B5CF6');
 
   // Saldo destacado
   var s=saldo(p);
@@ -782,7 +782,7 @@ function dibujarComprobanteMulti(items){
       x.fillStyle='#64748B';x.font='bold 21px Arial';
       x.fillText('Cuotas pagadas',75,dy);
       x.fillStyle='#8B5CF6';x.font='bold 28px Arial';
-      x.textAlign='right';x.fillText(fmtCuo(cuotasPagadas(p))+' de '+p.cuo,W-75,dy+2);
+      x.textAlign='right';x.fillText(fmtCuo(cuotasPagadas(p))+'/'+p.cuo,W-75,dy+2);
       dy+=40;
     }
     x.textAlign='left';
@@ -1598,7 +1598,7 @@ function ovFicha(id){
       '<div class="fila"><span class="k">Interés '+p.int+'%</span><span class="v">'+fmt(interes)+'</span></div>'+
       '<div class="fila"><span class="k">Total a cobrar</span><span class="v" style="color:#F59E0B">'+fmt(total)+'</span></div>'+
       '<div class="fila"><span class="k">Ya pagó</span><span class="v" style="color:#10B981">'+fmt(pagado)+'</span></div>'+
-      (p.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+fmtCuo(cuotasPagadas(p))+' de '+p.cuo+' · '+fmt(valorCuota(p))+' c/u</span></div>':'')+
+      (p.cuo>0?'<div class="fila"><span class="k">Cuotas</span><span class="v" style="color:#8B5CF6">'+fmtCuo(cuotasPagadas(p))+'/'+p.cuo+' · '+fmt(valorCuota(p))+' c/u</span></div>':'')+
       '<div class="fila"><span class="k">Fecha préstamo</span><span class="v">'+(p.fec||'-')+'</span></div>'+
       '<div class="fila"><span class="k">Entregado en</span><span class="v">'+((p.fp||'efectivo')==='efectivo'?'Efectivo':(p.fp==='nequi'?'Nequi':'Transferencia'))+'</span></div>'+
     '</div>';
