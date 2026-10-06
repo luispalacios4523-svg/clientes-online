@@ -739,7 +739,11 @@ function dibujarComprobante(p,monto){
 // y devuelve false si el navegador no permite compartir sin un toque.
 // Un solo comprobante con varias cuentas del mismo cliente
 function dibujarComprobanteMulti(items){
-  var W=820,alto=330+items.length*250+230;
+  var W=820;
+  // Cada bloque mide mas si la cuenta tiene cuotas definidas
+  var altos=items.map(function(it){return it.p.cuo>0?292:252;});
+  var suma=altos.reduce(function(a,b){return a+b;},0);
+  var alto=210+suma+80;
   var c=document.createElement('canvas');
   c.width=W;c.height=alto;
   var x=c.getContext('2d');
@@ -753,12 +757,11 @@ function dibujarComprobanteMulti(items){
   x.font='22px Arial';
   x.fillText(new Date().toLocaleString('es-CO'),W/2,132);
 
-  var y=210,totAb=0,totSal=0;
+  var y=210;
   items.forEach(function(it,i){
-    var p=it.p,s=saldo(p);
-    totAb+=it.monto;totSal+=s;
-    x.fillStyle='#F8FAFC';x.fillRect(50,y-36,W-100,210);
-    x.strokeStyle='#CBD5E1';x.lineWidth=2;x.strokeRect(50,y-36,W-100,210);
+    var p=it.p,s=saldo(p),hb=altos[i]-42;
+    x.fillStyle='#F8FAFC';x.fillRect(50,y-36,W-100,hb);
+    x.strokeStyle='#CBD5E1';x.lineWidth=2;x.strokeRect(50,y-36,W-100,hb);
 
     x.textAlign='left';
     x.fillStyle='#8B5CF6';x.font='bold 20px Arial';
@@ -773,25 +776,23 @@ function dibujarComprobanteMulti(items){
     x.fillStyle='#10B981';x.font='bold 31px Arial';
     x.textAlign='right';x.fillText(fmt(it.monto),W-75,y+114);
 
+    var dy=y+152;
+    if(p.cuo>0){
+      x.textAlign='left';
+      x.fillStyle='#64748B';x.font='bold 21px Arial';
+      x.fillText('Cuotas pagadas',75,dy);
+      x.fillStyle='#8B5CF6';x.font='bold 28px Arial';
+      x.textAlign='right';x.fillText(fmtCuo(cuotasPagadas(p))+' de '+p.cuo,W-75,dy+2);
+      dy+=40;
+    }
     x.textAlign='left';
     x.fillStyle='#64748B';x.font='bold 21px Arial';
-    x.fillText('Saldo',75,y+152);
+    x.fillText('Saldo',75,dy);
     x.fillStyle=s>0?'#EF4444':'#10B981';x.font='bold 31px Arial';
-    x.textAlign='right';x.fillText(s>0?fmt(s):'CANCELADO',W-75,y+154);
+    x.textAlign='right';x.fillText(s>0?fmt(s):'CANCELADO',W-75,dy+2);
     x.textAlign='left';
-    y+=250;
+    y+=altos[i];
   });
-
-  y+=14;
-  x.fillStyle='#1E3A8A';x.fillRect(50,y,W-100,150);
-  x.fillStyle='#93C5FD';x.font='bold 21px Arial';x.textAlign='left';
-  x.fillText('TOTAL ABONADO HOY',75,y+42);
-  x.fillStyle='#fff';x.font='bold 34px Arial';x.textAlign='right';
-  x.fillText(fmt(totAb),W-75,y+44);
-  x.fillStyle='#93C5FD';x.font='bold 21px Arial';x.textAlign='left';
-  x.fillText('SALDO TOTAL PENDIENTE',75,y+110);
-  x.fillStyle='#fff';x.font='bold 34px Arial';x.textAlign='right';
-  x.fillText(fmt(totSal),W-75,y+112);
 
   x.fillStyle='#94A3B8';x.font='19px Arial';x.textAlign='center';
   x.fillText('Documento generado automaticamente por el sistema',W/2,alto-36);
