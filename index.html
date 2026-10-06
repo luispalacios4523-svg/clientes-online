@@ -196,6 +196,8 @@ tr.rw{cursor:pointer;}.rw:hover{background:#EFF6FF;}tr.rw.sel{background:#EFF6FF
 .em-ok{font-size:15px;font-weight:800;color:#10B981;padding:6px 0;}
 .em-wa{background:#25D366;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;padding:11px;font-family:Arial,sans-serif;width:100%;margin-top:4px;}
 .em-env{font-size:13px;font-weight:700;color:#059669;padding:6px 0;}
+.em-todos{background:#25D366;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;padding:17px 12px;font-family:Arial,sans-serif;width:100%;margin-top:14px;line-height:1.3;}
+.em-sep{font-size:11px;color:#94A3B8;text-align:center;margin-top:7px;font-style:italic;}
 .em-falta{background:#FFFBEB;border:1.5px solid #F59E0B;color:#92400E;border-radius:10px;padding:9px;font-size:13px;font-weight:700;margin-top:12px;}
 .em-fila.pend{background:#FFFBEB;border-color:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,.2);}
 .em-pend{font-size:14px;color:#92400E;font-weight:700;margin-bottom:8px;}
@@ -735,30 +737,84 @@ function dibujarComprobante(p,monto){
 }
 // auto = true cuando el intento es automatico: ahi no molesta con alertas
 // y devuelve false si el navegador no permite compartir sin un toque.
-function compartirComprobante(id,monto,auto,alEnviar){
-  var p=P.find(function(x){return x.id===id;});
-  if(!p)return false;
-  var puede=!!(navigator.canShare&&navigator.share);
-  if(auto&&!puede)return false;
-  var c=dibujarComprobante(p,monto);
+// Un solo comprobante con varias cuentas del mismo cliente
+function dibujarComprobanteMulti(items){
+  var W=820,alto=330+items.length*250+230;
+  var c=document.createElement('canvas');
+  c.width=W;c.height=alto;
+  var x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,alto);
+
+  x.fillStyle='#1E3A8A';x.fillRect(0,0,W,150);
+  x.fillStyle='#fff';x.font='bold 42px Arial';x.textAlign='center';
+  x.fillText('COMPROBANTE DE PAGO',W/2,62);
+  x.font='bold 26px Arial';x.fillStyle='#93C5FD';
+  x.fillText(items.length+' cuentas',W/2,100);
+  x.font='22px Arial';
+  x.fillText(new Date().toLocaleString('es-CO'),W/2,132);
+
+  var y=210,totAb=0,totSal=0;
+  items.forEach(function(it,i){
+    var p=it.p,s=saldo(p);
+    totAb+=it.monto;totSal+=s;
+    x.fillStyle='#F8FAFC';x.fillRect(50,y-36,W-100,210);
+    x.strokeStyle='#CBD5E1';x.lineWidth=2;x.strokeRect(50,y-36,W-100,210);
+
+    x.textAlign='left';
+    x.fillStyle='#8B5CF6';x.font='bold 20px Arial';
+    x.fillText('CUENTA '+(i+1),75,y-4);
+    x.fillStyle='#1E293B';x.font='bold 31px Arial';
+    x.fillText(p.nom.toUpperCase(),75,y+34);
+    x.fillStyle='#94A3B8';x.font='19px Arial';
+    x.fillText('Prestamo '+fmt(p.mon)+'  ·  '+(p.fec||''),75,y+64);
+
+    x.fillStyle='#64748B';x.font='bold 21px Arial';
+    x.fillText('Abono',75,y+112);
+    x.fillStyle='#10B981';x.font='bold 31px Arial';
+    x.textAlign='right';x.fillText(fmt(it.monto),W-75,y+114);
+
+    x.textAlign='left';
+    x.fillStyle='#64748B';x.font='bold 21px Arial';
+    x.fillText('Saldo',75,y+152);
+    x.fillStyle=s>0?'#EF4444':'#10B981';x.font='bold 31px Arial';
+    x.textAlign='right';x.fillText(s>0?fmt(s):'CANCELADO',W-75,y+154);
+    x.textAlign='left';
+    y+=250;
+  });
+
+  y+=14;
+  x.fillStyle='#1E3A8A';x.fillRect(50,y,W-100,150);
+  x.fillStyle='#93C5FD';x.font='bold 21px Arial';x.textAlign='left';
+  x.fillText('TOTAL ABONADO HOY',75,y+42);
+  x.fillStyle='#fff';x.font='bold 34px Arial';x.textAlign='right';
+  x.fillText(fmt(totAb),W-75,y+44);
+  x.fillStyle='#93C5FD';x.font='bold 21px Arial';x.textAlign='left';
+  x.fillText('SALDO TOTAL PENDIENTE',75,y+110);
+  x.fillStyle='#fff';x.font='bold 34px Arial';x.textAlign='right';
+  x.fillText(fmt(totSal),W-75,y+112);
+
+  x.fillStyle='#94A3B8';x.font='19px Arial';x.textAlign='center';
+  x.fillText('Documento generado automaticamente por el sistema',W/2,alto-36);
+  return c;
+}
+// Comparte el canvas que reciba; sirve para uno o para varios
+function compartirCanvas(c,nombre,titulo,auto,alEnviar){
+  if(auto&&!(navigator.canShare&&navigator.share))return false;
   c.toBlob(function(blob){
     if(!blob){if(!auto)alert('No se pudo generar la imagen.');return;}
-    var nombre='saldo-'+p.nom.replace(/[^a-zA-Z0-9]/g,'-')+'-'+hoy()+'.png';
     var file=new File([blob],nombre,{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:'Comprobante '+p.nom})
+      navigator.share({files:[file],title:titulo})
         .then(function(){
           cerrarAviso();
           var e=ge('VZ-ENV-EST');if(e)e.innerHTML='<b style="color:#10B981">✓ Comprobante enviado</b>';
           if(alEnviar)alEnviar();
         })
         .catch(function(){
-          // Bloqueado por falta de toque, o el usuario cancelo el envio
           var e=ge('VZ-ENV-EST');
           if(e)e.innerHTML='<b style="color:#B45309">Toque el botón verde para enviar</b>';
         });
     }else{
-      // Sin menu de compartir (PC): se descarga para adjuntarla a mano
       var u=URL.createObjectURL(blob);
       var a=document.createElement('a');a.href=u;a.download=nombre;a.click();
       URL.revokeObjectURL(u);
@@ -766,6 +822,27 @@ function compartirComprobante(id,monto,auto,alEnviar){
       alert('Imagen descargada. Adjúntela en WhatsApp.\n\n(El menú de compartir solo funciona en el celular.)');
     }
   },'image/png');
+  return true;
+}
+// Manda un solo comprobante con todas las cuentas abonadas
+function emEnviarTodos(){
+  var items=[];
+  _emCands.forEach(function(c){
+    if(_emHechos[c.p.id])items.push({p:c.p,monto:_emHechos[c.p.id]});
+  });
+  if(!items.length)return;
+  if(items.length===1)return emEnviarComp(items[0].p.id);
+  var nom='comprobante-'+items[0].p.nom.replace(/[^a-zA-Z0-9]/g,'-')+'-'+hoy()+'.png';
+  compartirCanvas(dibujarComprobanteMulti(items),nom,'Comprobante '+items.length+' cuentas',false,function(){
+    items.forEach(function(it){_emEnviados[it.p.id]=1;});
+    emPintar(_emMonto,_emTexto);
+  });
+}
+function compartirComprobante(id,monto,auto,alEnviar){
+  var p=P.find(function(x){return x.id===id;});
+  if(!p)return false;
+  var nombre='saldo-'+p.nom.replace(/[^a-zA-Z0-9]/g,'-')+'-'+hoy()+'.png';
+  return compartirCanvas(dibujarComprobante(p,monto),nombre,'Comprobante '+p.nom,auto,alEnviar);
 }
 function cerrarAviso(){var a=ge('AVISO-WA');if(a)a.classList.remove('on');}
 function avisoWA(id,monto){
@@ -1675,7 +1752,12 @@ function emPintar(monto,texto){
   }).join('');
   var n=0;for(var k in _emHechos)n++;
   var ne=0;for(var k2 in _emEnviados)ne++;
-  if(n&&ne<n)h+='<div class="em-falta">Faltan '+(n-ne)+' comprobante'+((n-ne)>1?'s':'')+' por enviar</div>';
+  // Varias cuentas abonadas y ninguna enviada: un solo comprobante para todas
+  if(n>1&&ne===0){
+    h+='<button class="em-todos" onclick="emEnviarTodos()">🧾 Enviar UN comprobante con las '+n+' cuentas</button>'+
+       '<div class="em-sep">o uno por cuenta en cada fila</div>';
+  }
+  if(n&&ne<n&&!(n>1&&ne===0))h+='<div class="em-falta">Faltan '+(n-ne)+' comprobante'+((n-ne)>1?'s':'')+' por enviar</div>';
   h+='<div class="vz-btns" style="margin-top:14px">'+
       (n?'<button class="vz-si" onclick="ovCerrar()">✓ TERMINAR ('+n+' abono'+(n>1?'s':'')+')</button>':'')+
       '<button class="vz-rep" onclick="iniciarVoz()">🎤 Repetir</button>'+
